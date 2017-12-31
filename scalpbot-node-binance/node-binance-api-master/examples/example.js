@@ -1,4 +1,4 @@
-var action = 6;
+var action = 7;
 
 const binance = require('../node-binance-api.js');
 binance.options({
@@ -41,14 +41,16 @@ var bids;
 var asks;
 
 // Maintain Market Depth Cache Locally via WebSocket
-binance.websockets.depthCache(["ICXETH"], function(symbol, depth) {
-	max = 3; // Show 10 closest orders only
-	bids = binance.sortBids(depth.bids, max);
-	asks = binance.sortAsks(depth.asks, max);
-	console.log(">> " + symbol + " depth cache updated!");		
-});
+//binance.websockets.depthCache(["ICXETH"], function(symbol, depth) {
+	//max = 3; // Show 10 closest orders only
+	//bids = binance.sortBids(depth.bids, max);
+	//asks = binance.sortAsks(depth.asks, max);
+	//console.log(">> " + symbol + " depth cache updated!");		
+//});
 
 (function() {
+
+	console.log('\033c');
 
 	switch(action)
 	{
@@ -94,10 +96,31 @@ binance.websockets.depthCache(["ICXETH"], function(symbol, depth) {
 				//console.log("bids", bids);
 				//console.log("ask: "+binance.first(asks));
 				//console.log("bid: "+binance.first(bids));	
-
 			}
+			break;
+		case 7:
+			// Trade history
+			binance.recentTrades("ICXETH", function(json) {
+			//console.log("Trade history:");
+				var x = 1;
+				var tradeList = [];
+
+				for ( let obj of json ) {
+					if (obj.isBuyerMaker)
+						tradeList[x] = FgRed + " " + obj.qty + Reset
+					else 
+						tradeList[x] = FgGreen + " " + obj.qty + Reset
+
+					x++;
+				}
+
+				for (x = tradeList.length - 1; x > 0; --x) {
+					console.log(tradeList[x]);
+				}
+				//console.log(json);
+			});
 	}
-	setTimeout(arguments.callee, 2000);
+	setTimeout(arguments.callee, 1000);
 })();
 
 // Get bid/ask prices
