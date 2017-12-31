@@ -1,0 +1,28 @@
+{
+  "manifest_version": 2,
+  "name": "ScalpBot",
+  "version": "0.1",
+
+  "content_scripts": [
+	  {
+	    "matches": [
+	      "<all_urls>"
+	    ],
+	    "js": ["jquery-3.2.1.min.js", "content.js"]
+	  }
+	],
+
+	"browser_action": {
+	  "default_icon": "images/icon.png"
+	  //"default_popup": "popup.html" // for later implementation
+	},
+
+	"permissions": [
+		"activeTab",
+		"storage"
+	],
+
+	"background": {
+	  "scripts": ["background.js"]
+	}
+}
