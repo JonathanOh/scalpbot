@@ -621,7 +621,6 @@ module.exports = function() {
 					publicRequest(base+"v1/depth", {symbol:symbol, limit:limit}, function(json) {
 						info[symbol].firstUpdateId = json.lastUpdateId;
 						depthCache[symbol] = depthData(json);
-						console.log(Object.keys(depthCache[symbol]).length);
 						for ( let depth of messageQueue[symbol] ) {
 							depthHandler(depth, json.lastUpdateId);
 						}

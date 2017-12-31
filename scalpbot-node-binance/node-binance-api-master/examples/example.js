@@ -8,20 +8,47 @@ binance.options({
 
 console.log("\r\nStarting: ScalpBot for Binance... \r\n");
 
-(function() {
+// color definitions
+Reset = "\x1b[0m"
+Bright = "\x1b[1m"
+Dim = "\x1b[2m"
+Underscore = "\x1b[4m"
+Blink = "\x1b[5m"
+Reverse = "\x1b[7m"
+Hidden = "\x1b[8m"
 
-	// Maintain Market Depth Cache Locally via WebSocket
-	binance.websockets.depthCache(["ICXETH"], function(symbol, depth) {
-		let max = 1; // Show 10 closest orders only
-		let bids = binance.sortBids(depth.bids, max);
-		let asks = binance.sortAsks(depth.asks, max);
-		console.log("ICXETH"+" depth cache update");
-		console.log("asks", asks);
-		console.log("bids", bids);
-		console.log("ask: "+binance.first(asks));
-		console.log("bid: "+binance.first(bids));	
-		console.log("\r\n\n");			
-	});
+FgBlack = "\x1b[30m"
+FgRed = "\x1b[31m"
+FgGreen = "\x1b[32m"
+FgYellow = "\x1b[33m"
+FgBlue = "\x1b[34m"
+FgMagenta = "\x1b[35m"
+FgCyan = "\x1b[36m"
+FgWhite = "\x1b[37m"
+
+BgBlack = "\x1b[40m"
+BgRed = "\x1b[41m"
+BgGreen = "\x1b[42m"
+BgYellow = "\x1b[43m"
+BgBlue = "\x1b[44m"
+BgMagenta = "\x1b[45m"
+BgCyan = "\x1b[46m"
+BgWhite = "\x1b[47m"
+
+// websocket definitions
+var max;
+var bids;
+var asks;
+
+// Maintain Market Depth Cache Locally via WebSocket
+binance.websockets.depthCache(["ICXETH"], function(symbol, depth) {
+	max = 3; // Show 10 closest orders only
+	bids = binance.sortBids(depth.bids, max);
+	asks = binance.sortAsks(depth.asks, max);
+	console.log(">> " + symbol + " depth cache updated!");		
+});
+
+(function() {
 
 	switch(action)
 	{
@@ -56,7 +83,19 @@ console.log("\r\nStarting: ScalpBot for Binance... \r\n");
 			}, 20);
 			break;
 		case 6:
-			console.log("heartbeat.. \r\n");
+			if (bids && asks) {
+				console.log("\r\nICXETH"+" latest cache data:");
+				console.log("------------------------------------------");
+				console.log(FgRed+"Current ASK:"+Reset, Object.keys(asks)[0]);
+				console.log(FgGreen+"Current BID:"+Reset, Object.keys(bids)[0]);
+				console.log("------------------------------------------");
+				console.log();
+				//console.log("asks", asks);
+				//console.log("bids", bids);
+				//console.log("ask: "+binance.first(asks));
+				//console.log("bid: "+binance.first(bids));	
+
+			}
 	}
 	setTimeout(arguments.callee, 2000);
 })();
