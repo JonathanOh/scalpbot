@@ -511,7 +511,7 @@ module.exports = function() {
 				if ( callback ) return callback.call(this, data, symbol);
 			});
 		},
-		recentTrades: function(symbol, callback, limit = 50) {
+		recentTrades: function(symbol, callback, limit = 500) {
 			publicRequest(base+"v1/trades", {symbol:symbol, limit:limit}, callback);
 		},
 		historicalTrades: function(symbol, callback, limit = 500) {
