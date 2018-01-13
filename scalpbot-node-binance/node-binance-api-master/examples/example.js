@@ -1,7 +1,6 @@
 // user configuration
 //orderSpreadRequired = 40; 			// satoshi spread required to initiate a purchase
 coinSymbol = "ICXETH";
-satoshiMultiplier = 1000000;			// multiplier to get satoshi value from decimal value
 coinDecimalCount = 6;							// number of decimals used for selected coin
 
 tradeHistorySize = 500;						// max amount of trade history entries to store in our log
@@ -9,11 +8,11 @@ tradeHistorySize = 500;						// max amount of trade history entries to store in 
 //undercutAmountThreshold = 50;		// the total % of your ICX required to be under your order to perform an undercut
 //undercutSpreadLimit = 20;				// minimum satoshi spread limit to undercut at
 
-tradeHistoryTime = 15; 						// length of time (in seconds) to use from trade history when calculating trade volume
-
 midMarketScope = 50;							// mid-market scope (in satoshi) to analyze for market entry
-buyWallMultiplier = 10;						// # of times greater the buyer depth must be compared to the seller depth within mid-market scope
+buyWallMultiplier = 2;						// # of times greater the buyer depth must be compared to the seller depth within mid-market scope
 maxSalesValueVsBuyDepth = 30;			// maximum allowed % value of total sales within trade history timeframe VS buy depth value for market entry
+
+tradeHistoryTimeframe = 15; 			// length of time (in seconds) to use from trade history when calculating trade volume
 
 sellPriceMultiplier = 1.01;				// multiplier value of the purchase price to use as our sell price
 
@@ -23,6 +22,7 @@ sellPriceMultiplier = 1.01;				// multiplier value of the purchase price to use 
 //
 ///////////////////////////////////////////
 
+satoshiMultiplier = Math.pow(10, coinDecimalCount); // multiplier to get satoshi value from decimal value
 midMarketScope /= satoshiMultiplier;
 
 const binance = require('../node-binance-api.js');
@@ -49,6 +49,11 @@ FgMagenta = "\x1b[35m";
 FgCyan = "\x1b[36m";
 FgWhite = "\x1b[37m";
 
+FgBrightRed = Bright + FgRed;
+FgBrightGreen = Bright + FgGreen;
+FgBrightYellow = Bright + FgYellow;
+FgBrightWhite = Bright + FgWhite;
+
 BgBlack = "\x1b[40m";
 BgRed = "\x1b[41m";
 BgGreen = "\x1b[42m";
@@ -64,14 +69,22 @@ var bids;
 var asks;
 var tradeHistory = [];
 
-// state data
-var currentTimestamp;
-
 var globalData = {
-	sellDepth: -1,
-	buyDepth: -1,
-	buyPrice: -1,
-	numTrades: -1,
+	depth: {
+		sellDepth: -1,
+		buyDepth: -1,
+		sellDepthETH: -1,
+		buyDepthETH: -1
+	},
+	sentiment: {
+		sellTotal: -1,
+		buyTotal: -1,
+		selltotalETH: -1,
+		netResult: -1
+	},
+	openOrder: {
+		buyPrice: -1
+	}
 }
 
 // validate the current order book gap
@@ -120,23 +133,28 @@ const getTradeMovement = function(callback) {
 
 const getMarketDepth = function(callback) {
 	let midMarketValue = 0;
-	let response = {
-		sellDepth: 0,
-		buyDepth: 0
-	};
+	let scopeMax = 0;
+	let scopeMin = 0;
+
+	// reset global data
+	globalData.depth.sellDepth = 0;
+	globalData.depth.buyDepth = 0;
+	globalData.depth.sellDepthETH = 0;
+	globalData.depth.buyDepthETH = 0;
 
 	// get mid-market value
-	midMarketValue = Number(Number((Object.keys(asks)[0] - Object.keys(bids)[0]).toFixed(coinDecimalCount)) + Number(Object.keys(bids)[0])).toFixed(coinDecimalCount);
+	midMarketValue = Number(Object.keys(asks)[0]) - Number(Object.keys(bids)[0]);
+	midMarketValue /= 2;
+	midMarketValue += Number(Object.keys(bids)[0]);
 
-	scopeMax = parseFloat(midMarketValue) + parseFloat(midMarketScope);
-	scopeMin = parseFloat(midMarketValue) - parseFloat(midMarketScope);
+	scopeMax = (midMarketValue + midMarketScope).toFixed(coinDecimalCount);
+	scopeMin = (midMarketValue - midMarketScope).toFixed(coinDecimalCount);
 
 	//console.log("-----------------------------------");
-	//console.log("Scope MAX: ", scopeMax.toFixed(coinDecimalCount));
-	//console.log("MMV      :  " + midMarketValue + " (Satoshi Spread = " + (midMarketScope * satoshiMultiplier) + ")");	
-	//console.log("Scope MIN: ", scopeMin.toFixed(coinDecimalCount));
+	//console.log("Scope MAX: " + scopeMax);
+	//console.log("MMV      : " + midMarketValue + " (Satoshi Spread = " + (midMarketScope * satoshiMultiplier) + ")");	
+	//console.log("Scope MIN: " + scopeMin);
 	//console.log("-----------------------------------");
-	//console.log("Scope MIN: ", parseFloat(midMarketValue)-parseFloat(midMarketScope));
 
 	asksPropertyGroup = asks;
 	asksPropertyNames = Object.keys(asks);
@@ -152,7 +170,8 @@ const getMarketDepth = function(callback) {
 		quantity = asksPropertyGroup[value];
 
 		if (parseFloat(value) <= parseFloat(scopeMax)) {
-			response.sellDepth += parseFloat(quantity)
+			globalData.depth.sellDepth += parseFloat(quantity)
+			globalData.depth.sellDepthETH += (parseFloat(quantity) * parseFloat(value));						
 			//console.log(value + " : " + quantity);
 		} else {
 			break;
@@ -167,37 +186,84 @@ const getMarketDepth = function(callback) {
 		quantity = bidsPropertyGroup[value];
 
 		if (parseFloat(value) >= parseFloat(scopeMin)) {
-			response.buyDepth += parseFloat(quantity)
+			globalData.depth.buyDepth += parseFloat(quantity)
+			globalData.depth.buyDepthETH += (parseFloat(quantity * value));			
 			//console.log(value + " : " + quantity);
 		} else {
 			break;
 		}
 	}	
 
-	if (callback) return callback(response);
+	if (callback) return callback();
 	//console.log(FgRed+"Current ASK:"+Reset, Object.keys(asks)[0]);
 	//console.log(FgGreen+"Current BID:"+Reset, Object.keys(bids)[0]);
+}
+
+const getMarketSentiment = function(callback) {
+	// store current time + define the oldest timestamp search value (based on user config)
+	let latestTime = Date.now();
+	let oldestTime = latestTime - (tradeHistoryTimeframe * 1000);
+
+	// MANUAL // {symbol:coinSymbol, price:trade.price, quantity:trade.qty, maker:trade.isBuyerMaker, tradeId:trade.id, tradeTime:trade.time};
+	// SOCKET // {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId, T:tradeTime}
+
+	// reset global data
+	globalData.sentiment.sellTotal = 0;
+	globalData.sentiment.buyTotal = 0;
+	globalData.sentiment.selltotalETH = 0;
+
+	console.log('\033c');
+
+	// calculate buy and sell quantities within the defined timeframe scope
+	for (trade of tradeHistory) {
+		if (trade.tradeTime > oldestTime) {
+
+			if (trade.maker)
+				console.log(FgRed+"price: "+trade.price+", qty: "+trade.quantity+"maker: "+trade.maker+Reset);
+			else
+				console.log(FgGreen+"price: "+trade.price+", qty: "+trade.quantity+"maker: "+trade.maker+Reset);
+
+			if (trade.maker) {
+				globalData.sentiment.sellTotal += Number(trade.quantity)
+				globalData.sentiment.selltotalETH -= (Number(trade.quantity) * Number(trade.price));
+			} else {
+				globalData.sentiment.buyTotal += Number(trade.quantity)
+				//globalData.sentiment.ethTotal += (Number(trade.quantity) * Number(trade.price));
+			}
+
+		} else {
+			// stop scanning trades, we have left the timeframe scope
+			break;
+		}
+	}
+
+	// calculate the net sentiment
+	globalData.sentiment.netResult = globalData.sentiment.buyTotal - globalData.sentiment.sellTotal
+
+	console.log("buy total  ("+coinSymbol+"): "+parseFloat(globalData.sentiment.buyTotal));
+	console.log("sell total ("+coinSymbol+"): "+parseFloat(globalData.sentiment.sellTotal));
+	console.log("sell total (ETH): "+parseFloat(globalData.sentiment.selltotalETH));	
+	console.log("net: "+parseFloat(globalData.sentiment.netResult));
+
+	if (callback) return callback();
 }
 
 const getTradeHistory = function(callback) {
 	// retrieve trade history
 	binance.recentTrades(coinSymbol, function(json) {
-		var x = 0;
-
 		for ( let trade of json ) {
 			let {i:id, p:price, q:qty, T:time, m:isBuyerMaker} = trade;
-			let tradeHistoryElement = {symbol:coinSymbol, price:trade.price, quantity:trade.qty, maker:trade.isBuyerMaker, tradeId:trade.id, tradeTime:trade.time};
+			let tradeHistoryEntry = {symbol:coinSymbol, price:trade.price, quantity:trade.qty, maker:trade.isBuyerMaker, tradeId:trade.id, tradeTime:trade.time};
 
-			// add the trade entry to our tradeHisotry array
-			tradeHistory.unshift(tradeHistoryElement);
-
-			if ( x <= tradeHistorySize)
-				x++;
-			else
-				break;
+			// add the trade entry to our tradeHistory array
+			tradeHistory.unshift(tradeHistoryEntry);
 		};
 
-		if (callback) return callback(tradeHistory);			
+		// cut the history array down to the user-defined size (if applicable)
+		if (tradeHistory.length >= tradeHistorySize)
+			tradeHistory = tradeHistory.slice(0, tradeHistorySize);
+
+		if (callback) return callback();			
 	});
 }
 
@@ -219,10 +285,13 @@ var stateProcessing = false;
 		// begin state-based execution		
 		switch(state)
 		{
+			case 0: // testing
+				break;
 			case 1: // INITIALIZATION: START DEPTH WEBSOCKET
 				console.log('\033c');
-				console.log("Initializing...");
-				console.log("  > Starting market depth WebtSocket... ");
+				console.log(FgBrightWhite);				
+				console.log("  > Initializing..." + Reset);
+				console.log("    > Starting market depth WebtSocket... ");
 
 				// Maintain Market Depth Cache Locally via WebSocket
 				binance.websockets.depthCache([coinSymbol], function(symbol, depth) {
@@ -238,12 +307,12 @@ var stateProcessing = false;
 
 				break;
 			case 2: // INITIALIZATION: GATHER TRADE HISTORY
-				console.log("  > Retrieving market trade hisotry... ");
+				console.log("    > Retrieving market trade history... ");
 
 				// populate our trade hisotry array
-				getTradeHistory(function(response) {
+				getTradeHistory(function() {
 					if (tradeHistory.length >= tradeHistorySize) {
-						console.log("    > Retrieved " + tradeHistory.length + " historical trades!");
+						console.log("      > Retrieved " + tradeHistory.length + " historical trades!");
 						state++;
 					}
 
@@ -253,17 +322,18 @@ var stateProcessing = false;
 
 				break;
 			case 3: // INITIALIZATION: START TRADE WEBSCOKET
-				console.log("  > Starting market trades WebSocket... ");
+				console.log("    > Starting market trades WebSocket... ");
 
-				binance.websockets.trades([coinSymbol], function(trades) {
-				  let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId, T:tradeTime} = trades;
+				binance.websockets.trades([coinSymbol], function(trade) {
+				  let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId, T:tradeTime} = trade;
+					let tradeHistoryEntry = {symbol:trade.s, price:trade.p, quantity:trade.q, maker:trade.m, tradeId:trade.a, tradeTime:trade.T};				  
 
 				  // check if trade history array exceeds configured storage limit; and pop the last entry if so
-				  if (tradeHistory.length > tradeHistorySize - 1)
+				  if (tradeHistory.length >= tradeHistorySize)
 				  	tradeHistory.pop();
 
 				  // push the most recent trade into the beginning of our history array
-				 	tradeHistory.unshift(trades);
+				 	tradeHistory.unshift(tradeHistoryEntry);
 				});
 
 				// reset processing flag & proceed to next state
@@ -272,38 +342,54 @@ var stateProcessing = false;
 				state++;
 
 				break;
-			case 4: // CHECK FOR OPEN ORDERS (TO DO)
-
+			case 4: // CHECK FOR OPEN ORDERS (TO DO) testing for now..
+				getMarketSentiment(function() {
+					stateProcessing = false;
+				});
 				break;
-			case 5: // MARKET ENTRY VALIDATION
-				console.log(" --- ");
-				console.log("  > Analyzing market entry requirements... ");
-				console.log("    > Mid-market scope: " + FgYellow + (midMarketScope * satoshiMultiplier) + Reset + " Satoshi");
+			case 5: // MARKET ENTRY VALIDATION [DEPTH]
+				console.log('\033c');	
+				console.log(FgBrightWhite);
+				console.log("  > Analyzing market entry requirements [DEPTH]... " + Reset);
+				console.log("    > Market pair: " + FgBrightYellow + coinSymbol + Reset);
+				console.log("    > Mid-market scope: " + FgBrightYellow + (midMarketScope * satoshiMultiplier) + Reset + " Satoshi");
+				console.log("    > BID vs ASK wall size requirement: " + FgBrightYellow + buyWallMultiplier + "x" + Reset);
+				console.log("   --- ");
 
 				if(asks) {
-					getMarketDepth(function(response) {
-						// update global data
-						globalData.sellDepth = response.sellDepth;
-						globalData.buyDepth = response.buyDepth;
+					getMarketDepth(function() {
+						console.log("    > " + FgBrightRed + "ASK" + Reset + " wall : " + globalData.depth.sellDepth.toFixed(0));	
+						console.log("    > " + FgBrightGreen + "BID" + Reset + " wall : " + globalData.depth.buyDepth.toFixed(0) + " (" + globalData.depth.buyDepthETH + " ETH)");	
+						console.log("   --- ");
 
-						console.log("    > " + FgRed + "ASK Depth : " + Reset + response.sellDepth);	
-						console.log("    > " + FgGreen + "BID Depth : " + Reset + response.buyDepth + "\r\n");	
-						
-						console.log("    > Buy wall multiplier requirement: " + FgYellow + buyWallMultiplier + "x" + Reset);
+						if (globalData.depth.buyDepth > globalData.depth.sellDepth) {
+							console.log("    > " + FgBrightGreen + "BID" + Reset + " wall is " + FgBrightYellow + ((globalData.depth.buyDepth / globalData.depth.sellDepth)).toFixed(2) + "x " + Reset + "greater than" + FgBrightRed + " ASK" + Reset + " wall");
+						} else {
+							console.log("    > " + FgBrightRed + "ASK" + Reset + " wall is " + FgBrightYellow + ((globalData.depth.sellDepth / globalData.depth.buyDepth)).toFixed(2) + "x " + Reset + "greater than" + FgBrightGreen + " BID" + Reset + " wall");
+						}
 
-						console.log("    > Multiplier satisfied?: " + FgRed + "NO" + Reset);
+						if (globalData.depth.buyDepth >= (globalData.depth.sellDepth * buyWallMultiplier)) {
+							console.log("    > Multiplier satisfied?: " + FgBrightGreen + "YES" + Reset);
+							state++;
+						} else {
+							console.log("    > Multiplier satisfied?: " + FgBrightRed + "NO" + Reset);
+						}
 
 						// reset processing flag & proceed to next state
 					  stateProcessing = false;
-						state++;		
-
-						console.log("\r\n\n");
 					});
 				}
 				break;
+			case 6: // MARKET ENTRY VALIDATION [TRADE SENTIMENT]
+				console.log(FgBrightWhite);
+				console.log("  > Analyzing market entry requirements [TRADE SENTIMENT]... " + Reset);
+				console.log("    > Trade history search scope: " + FgBrightYellow + tradeHistoryTimeframe + Reset + " seconds");
+				console.log("    > Trade entries available: " + FgBrightYellow + tradeHistory.length + Reset);
+				console.log("   --- ");
 
+				getMarketSentiment(function() {
 
-			case 6:
+				});
 
 				break;
 			case 7:
@@ -325,7 +411,7 @@ var stateProcessing = false;
 		}
 	}
 
-	setTimeout(arguments.callee, 500);
+	setTimeout(arguments.callee, 1000);
 }());
 
 // Get bid/ask prices
