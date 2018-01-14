@@ -1,20 +1,23 @@
 // user configuration
-//orderSpreadRequired = 40; 			// satoshi spread required to initiate a purchase
 coinSymbol = "ICXETH";
 coinDecimalCount = 6;							// number of decimals used for selected coin
 
+coinPurchaseAmount = 1;					// amount of coins to purchase when market entry conditions are met
+
 tradeHistorySize = 500;						// max amount of trade history entries to store in our log
 
-//undercutAmountThreshold = 50;		// the total % of your ICX required to be under your order to perform an undercut
-//undercutSpreadLimit = 20;				// minimum satoshi spread limit to undercut at
-
 midMarketScope = 50;							// mid-market scope (in satoshi) to analyze for market entry
-buyWallMultiplier = 2;						// # of times greater the buyer depth must be compared to the seller depth within mid-market scope
-maxSalesValueVsBuyDepth = 30;			// maximum allowed % value of total sales within trade history timeframe VS buy depth value for market entry
-
+buyWallMultiplier = 10;						// # of times greater the buyer depth must be compared to the seller depth within mid-market scope
+buyWallEthRequirement = 10;				// minimum required amount of ETH within the buy wall for market entry
+maxEthSalesVsBuyWall = 30;				// maximum allowed % value of total sales within trade history timeframe VS buy depth value for market entry
 tradeHistoryTimeframe = 15; 			// length of time (in seconds) to use from trade history when calculating trade volume
 
 sellPriceMultiplier = 1.01;				// multiplier value of the purchase price to use as our sell price
+
+// unused
+//undercutAmountThreshold = 50;		// the total % of your ICX required to be under your order to perform an undercut
+//undercutSpreadLimit = 20;				// minimum satoshi spread limit to undercut at
+//orderSpreadRequired = 40; 			// satoshi spread required to initiate a purchase
 
 ///////////////////////////////////////////
 //
@@ -27,8 +30,8 @@ midMarketScope /= satoshiMultiplier;
 
 const binance = require('../node-binance-api.js');
 binance.options({
-  'APIKEY':'YYrAdvp6cfJPAIJg8kTgT0Qd7HxVgrEQm4vJ9lU1HKZqEONt61ZDAVA1s7mnnSjD',
-  'APISECRET':'AwGen4zXvDa0P2Q1ernpawQ6LlOeUY3ITcNZLG6FPhOzH1sM0u1UMiBTXacZaZLW'
+  'APIKEY':'',
+  'APISECRET':''
 });
 
 // colors
@@ -79,11 +82,30 @@ var globalData = {
 	sentiment: {
 		sellTotal: -1,
 		buyTotal: -1,
-		selltotalETH: -1,
+		sellTotalETH: -1,
 		netResult: -1
 	},
-	openOrder: {
-		buyPrice: -1
+	ordering: {
+		recvWindow: 99999999,
+		ethBalance: -1,
+		validFunds: false,
+		submitTime: -1,
+		orderId: -1,
+		orderTime: -1,
+		orderStatus: -1,
+		percentFilled: -1,
+		currentPrice: -1,
+		targetPrice: -1,
+		buyPrice: -1,
+		sellPrice: -1
+	},
+	statistics: {
+		totalTrades: -1,
+		ethStart: -1,
+		ethCurrent: -1
+	},
+	misc: {
+		refreshRate: 200
 	}
 }
 
@@ -156,18 +178,14 @@ const getMarketDepth = function(callback) {
 	//console.log("Scope MIN: " + scopeMin);
 	//console.log("-----------------------------------");
 
-	asksPropertyGroup = asks;
-	asksPropertyNames = Object.keys(asks);
-
-	bidsPropertyGroup = bids;
-	bidsPropertyNames = Object.keys(bids);
-
 	//console.log("\r\nSell Orders:");
 
 	// get ask depth
-	for (var x = 0; x <= asksPropertyNames.length; x++) {
-		value = asksPropertyNames[x];
-		quantity = asksPropertyGroup[value];
+	for (var x = 0; x <= Object.keys(asks).length; x++) {
+		value = Object.keys(asks)[x];
+		quantity = asks[value];
+
+		//console.log(parseFloat(value) + " " + parseFloat(scopeMax));
 
 		if (parseFloat(value) <= parseFloat(scopeMax)) {
 			globalData.depth.sellDepth += parseFloat(quantity)
@@ -181,9 +199,9 @@ const getMarketDepth = function(callback) {
 	//console.log("\r\nBuy Orders:");
 
 	// get bid depth
-	for (var x = 0; x <= bidsPropertyNames.length; x++) {
-		value = bidsPropertyNames[x];
-		quantity = bidsPropertyGroup[value];
+	for (var x = 0; x <= Object.keys(bids).length; x++) {
+		value = Object.keys(bids)[x];
+		quantity = bids[value];
 
 		if (parseFloat(value) >= parseFloat(scopeMin)) {
 			globalData.depth.buyDepth += parseFloat(quantity)
@@ -210,22 +228,21 @@ const getMarketSentiment = function(callback) {
 	// reset global data
 	globalData.sentiment.sellTotal = 0;
 	globalData.sentiment.buyTotal = 0;
-	globalData.sentiment.selltotalETH = 0;
-
-	console.log('\033c');
+	globalData.sentiment.sellTotalETH = 0;
 
 	// calculate buy and sell quantities within the defined timeframe scope
 	for (trade of tradeHistory) {
 		if (trade.tradeTime > oldestTime) {
-
+			/*
 			if (trade.maker)
 				console.log(FgRed+"price: "+trade.price+", qty: "+trade.quantity+"maker: "+trade.maker+Reset);
 			else
 				console.log(FgGreen+"price: "+trade.price+", qty: "+trade.quantity+"maker: "+trade.maker+Reset);
+			*/
 
 			if (trade.maker) {
 				globalData.sentiment.sellTotal += Number(trade.quantity)
-				globalData.sentiment.selltotalETH -= (Number(trade.quantity) * Number(trade.price));
+				globalData.sentiment.sellTotalETH -= (Number(trade.quantity) * Number(trade.price));
 			} else {
 				globalData.sentiment.buyTotal += Number(trade.quantity)
 				//globalData.sentiment.ethTotal += (Number(trade.quantity) * Number(trade.price));
@@ -240,10 +257,12 @@ const getMarketSentiment = function(callback) {
 	// calculate the net sentiment
 	globalData.sentiment.netResult = globalData.sentiment.buyTotal - globalData.sentiment.sellTotal
 
+	/*
 	console.log("buy total  ("+coinSymbol+"): "+parseFloat(globalData.sentiment.buyTotal));
 	console.log("sell total ("+coinSymbol+"): "+parseFloat(globalData.sentiment.sellTotal));
-	console.log("sell total (ETH): "+parseFloat(globalData.sentiment.selltotalETH));	
+	console.log("sell total (ETH): "+parseFloat(globalData.sentiment.sellTotalETH));	
 	console.log("net: "+parseFloat(globalData.sentiment.netResult));
+	*/
 
 	if (callback) return callback();
 }
@@ -267,6 +286,105 @@ const getTradeHistory = function(callback) {
 	});
 }
 
+const getBalances = function(callback) {
+	// reset variable
+	globalData.ordering.ethBalance = 0;
+
+	// get available balances
+	binance.balance(function(balances) {
+		// get ETH balance
+		if (typeof balances.ETH !== "undefined")
+			globalData.ordering.ethBalance = balances.ETH.available;
+
+		//console.log("getBalances(): " + globalData.ordering.ethBalance);
+
+		if (callback) return callback();		
+	});
+}
+
+const validateFunds = function(callback) {
+	let requiredFunds = 99999;
+
+	// reset flag
+	globalData.ordering.validFunds = false;
+
+	getBalances(function() {
+		fundsRequired = (globalData.ordering.targetPrice * coinPurchaseAmount)
+
+		// check if required funding is available
+		if (globalData.ordering.ethBalance >= fundsRequired)
+			globalData.ordering.validFunds = true;
+		else
+			globalData.ordering.validFunds = false;
+
+		//console.log("validateFunds(): " + globalData.ordering.validFunds);
+
+		if (callback) return callback();
+	});
+}
+
+const getBidPrice = function(callback) {
+	// get the highest bid price
+	value = Object.keys(bids)[0];
+	quantity = bids[value];
+
+	globalData.ordering.targetPrice = Number(value).toFixed(coinDecimalCount);
+
+	if (callback) return callback();
+}
+
+const verifyOrderPlacement = function(callback) {
+	// reset variable
+	globalData.ordering.orderId = -1;
+
+	// Getting list of open orders
+	binance.openOrders(coinSymbol, function(json) {
+		//console.log("openOrders()", json);
+		for (let order of json) {
+			let {i:orderId, s:status, p:price, q:origQty} = order;
+			let timeDelta = 999999;
+
+			// verify if order matches submission
+			if ((order.side 		== 'SELL') 													&&
+					(order.status 	== 'NEW') 													&&
+					(order.price		== 1) 															&&
+					(order.origQty	== 1)) {
+					//(order.price		== globalData.ordering.targetPrice) &&
+					//(order.origQty 	== coinPurchaseAmount)) {
+
+				// check time delta
+				timeDelta = Math.abs(Date.now() - order.time);
+
+				if (timeDelta <= globalData.ordering.recvWindow)
+					globalData.ordering.orderId = order.orderId;
+			}
+		}
+
+		if (callback) return callback();
+	});	
+}
+
+const getBuyOrderDetails = function(callback) {
+	// reset variable
+	globalData.ordering.percentFilled = 0;
+
+	// check if the order is still open
+	binance.orderStatus(coinSymbol, globalData.ordering.orderId, function(order) {
+		//console.log(order);
+		let {i:orderId, s:status, p:price, q:origQty, e:executedQty} = order;
+		let percentFilled = (order.executedQty / order.origQty);
+
+		globalData.ordering.orderStatus = order.status;
+		globalData.ordering.percentFilled = percentFilled.toFixed(2);
+
+		if (callback) return callback();
+	});
+}
+
+const adjustBidPrice = function(callback) {
+	// compare 
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -285,7 +403,7 @@ var stateProcessing = false;
 		// begin state-based execution		
 		switch(state)
 		{
-			case 0: // testing
+			case 0: // unused
 				break;
 			case 1: // INITIALIZATION: START DEPTH WEBSOCKET
 				console.log('\033c');
@@ -301,7 +419,7 @@ var stateProcessing = false;
 					//console.log(">> " + symbol + " depth cache updated!");
 				});
 
-				// reset processing flag & proceed to next state
+				// reset processing flag & proceed
 				stateProcessing = false;
 				state++;
 
@@ -316,7 +434,7 @@ var stateProcessing = false;
 						state++;
 					}
 
-					// reset processing flag & proceed to next state
+					// reset processing flag & proceed
 					stateProcessing = false;				
 				});
 
@@ -336,7 +454,7 @@ var stateProcessing = false;
 				 	tradeHistory.unshift(tradeHistoryEntry);
 				});
 
-				// reset processing flag & proceed to next state
+				// reset processing flag & proceed
 			  stateProcessing = false;
 				state++;
 				state++;
@@ -344,23 +462,27 @@ var stateProcessing = false;
 				break;
 			case 4: // CHECK FOR OPEN ORDERS (TO DO) testing for now..
 				getMarketSentiment(function() {
+					// reset processing flag & proceed
 					stateProcessing = false;
 				});
 				break;
 			case 5: // MARKET ENTRY VALIDATION [DEPTH]
+				let multiplierFlag = false;
+				let ethFlag = false;
+
 				console.log('\033c');	
 				console.log(FgBrightWhite);
 				console.log("  > Analyzing market entry requirements [DEPTH]... " + Reset);
 				console.log("    > Market pair: " + FgBrightYellow + coinSymbol + Reset);
 				console.log("    > Mid-market scope: " + FgBrightYellow + (midMarketScope * satoshiMultiplier) + Reset + " Satoshi");
 				console.log("    > BID vs ASK wall size requirement: " + FgBrightYellow + buyWallMultiplier + "x" + Reset);
+				console.log("    > BID wall ETH requirement: " + FgBrightYellow + buyWallEthRequirement + " ETH" + Reset);
 				console.log("   --- ");
 
 				if(asks) {
 					getMarketDepth(function() {
 						console.log("    > " + FgBrightRed + "ASK" + Reset + " wall : " + globalData.depth.sellDepth.toFixed(0));	
 						console.log("    > " + FgBrightGreen + "BID" + Reset + " wall : " + globalData.depth.buyDepth.toFixed(0) + " (" + globalData.depth.buyDepthETH + " ETH)");	
-						console.log("   --- ");
 
 						if (globalData.depth.buyDepth > globalData.depth.sellDepth) {
 							console.log("    > " + FgBrightGreen + "BID" + Reset + " wall is " + FgBrightYellow + ((globalData.depth.buyDepth / globalData.depth.sellDepth)).toFixed(2) + "x " + Reset + "greater than" + FgBrightRed + " ASK" + Reset + " wall");
@@ -368,50 +490,225 @@ var stateProcessing = false;
 							console.log("    > " + FgBrightRed + "ASK" + Reset + " wall is " + FgBrightYellow + ((globalData.depth.sellDepth / globalData.depth.buyDepth)).toFixed(2) + "x " + Reset + "greater than" + FgBrightGreen + " BID" + Reset + " wall");
 						}
 
+						console.log("   --- ");						
+
 						if (globalData.depth.buyDepth >= (globalData.depth.sellDepth * buyWallMultiplier)) {
-							console.log("    > Multiplier satisfied?: " + FgBrightGreen + "YES" + Reset);
-							state++;
+							console.log("    > Multiplier requirement: " + FgBrightGreen + "PASS" + Reset);
+							multiplierFlag = true;
 						} else {
-							console.log("    > Multiplier satisfied?: " + FgBrightRed + "NO" + Reset);
+							console.log("    > Multiplier requirement: " + FgBrightRed + "FAIL" + Reset);					
 						}
 
-						// reset processing flag & proceed to next state
+						if (globalData.depth.buyDepthETH >= buyWallEthRequirement) {
+							console.log("    > BID wall ETH requirement: " + FgBrightGreen + "PASS" + Reset);
+							ethFlag = true;
+						} else {
+							console.log("    > BID wall ETH requirement: " + FgBrightRed + "FAIL" + Reset);
+						}
+
+						if ((multiplierFlag == true) && (ethFlag == true))
+							state++;
+
+						state++; // debugging
+						// reset processing flag & proceed
 					  stateProcessing = false;
 					});
 				}
 				break;
 			case 6: // MARKET ENTRY VALIDATION [TRADE SENTIMENT]
+				let sentimentWallPercentage = 100;
+
 				console.log(FgBrightWhite);
 				console.log("  > Analyzing market entry requirements [TRADE SENTIMENT]... " + Reset);
 				console.log("    > Trade history search scope: " + FgBrightYellow + tradeHistoryTimeframe + Reset + " seconds");
-				console.log("    > Trade entries available: " + FgBrightYellow + tradeHistory.length + Reset);
+				console.log("    > Max negative trade value vs. BID wall (in ETH): "+ FgBrightYellow + maxEthSalesVsBuyWall + " %" + Reset);
 				console.log("   --- ");
-
+				// gather market trade sentiment data
 				getMarketSentiment(function() {
+					sentimentWallPercentage = (Math.abs(globalData.sentiment.sellTotalETH) / globalData.depth.buyDepthETH) * 100;
 
+					console.log("    > Total BID wall: " + FgBrightGreen + globalData.depth.buyDepthETH + Reset);
+					console.log("    > Total ETH sold: " + FgBrightRed + Math.abs(globalData.sentiment.sellTotalETH) + Reset);
+					console.log("    > % of BID wall: " + FgBrightYellow + sentimentWallPercentage.toFixed(2) + " %" + Reset);					
+					console.log("   --- ");
+
+					if(sentimentWallPercentage <= maxEthSalesVsBuyWall) {
+						console.log("    > Sentiment requirement: " + FgBrightGreen + "PASS" + Reset);
+						state++;
+					} else {
+						console.log("    > Sentiment requirement: " + FgBrightRed + "FAIL" + Reset);
+						state--;
+					}
+				});
+
+				state++; // testing
+
+				// reset processing flag & proceed
+			  stateProcessing = false;
+				break;
+			case 7: // CALCULATE BID PRICE
+				stateProcessing = true;
+
+				console.log(FgBrightWhite);
+				console.log("  > Calculating BID price... " + Reset);
+
+				// calculate the target BID price
+				getBidPrice(function() {
+					console.log("    > Target BID price: " + FgBrightGreen + globalData.ordering.targetPrice + Reset);
+
+					state++;
+					stateProcessing = false;
 				});
 
 				break;
-			case 7:
+			case 8: // VALIDATE FUNDS
+				stateProcessing = true;		
+
+				console.log(FgBrightWhite);
+				console.log("  > Validating funds... " + Reset);
+
+				validateFunds(function() {
+					console.log("    > Purchase amount: " + FgBrightYellow + coinPurchaseAmount + Reset + " " + coinSymbol);
+					console.log("    > Required: " + FgBrightYellow + fundsRequired + Reset + " ETH");
+					console.log("    > Available: " + FgBrightYellow + globalData.ordering.ethBalance + Reset + " ETH");
+					console.log("   --- ");
+
+					if (globalData.ordering.validFunds == true) {
+						console.log("    > Funding Requirement: " + FgBrightGreen + "PASS" + Reset);	
+						state++;
+						stateProcessing = false;
+					} else {
+						console.log("    > Funding Requirement: " + FgBrightRed + "FAIL" + Reset);
+						state = 99;
+						stateProcessing = false;						
+					}
+				});
 
 				break;
-			case 8:
+			case 9: // PLACE LIMIT ORDER
+				stateProcessing = true;	
+				//console.log('\033[2A'); // up N lines
+				console.log(FgBrightWhite);
+				process.stdout.write("  > Submitting limit order request... " + Reset);
+
+				//binance.buy(coinSymbol, coinPurchaseAmount, globalData.ordering.targetPrice);
+				globalData.ordering.submitTime = Date.now();
+
+				process.stdout.write(FgBrightGreen);
+				process.stdout.write("DONE!\r\n" + Reset);
+
+				// pre-print text for next state
+				console.log(FgBrightWhite);
+				process.stdout.write("  > Verifying order placement... " + Reset);
+
+				// reset processing flag & proceed
+				state++;
+				stateProcessing = false;
 
 				break;
-			case 9:
+			case 10: // WAIT FOR ORDER PLACEMENT
+				stateProcessing = true;
+
+				// define our elapsed time since order submission
+				let submitTimeElapsed = (Date.now() - globalData.ordering.submitTime);
+
+				verifyOrderPlacement(function() {
+					// if order was verified, move on.. otherwise keep checkung until timoeut
+					if (globalData.ordering.orderId > 0) {	
+						process.stdout.write(FgBrightGreen + "SUCCESS\r\n" + Reset);
+						state++;
+					} else {
+						// check if we've exceeded our order receive window timeout
+						if (submitTimeElapsed > (globalData.ordering.recvWindow + 1000)) {
+							process.stdout.write(FgBrightRed + "FAILED\r\n" + Reset);
+							state = 5; // back to depth analysis
+						}
+					}
+
+					stateProcessing = false;
+				});
+				break;
+			case 11: // MONITOR OPEN ORDER
+				stateProcessing = true;
+
+				// reset flags
+				let depthCheck1 = false;
+				let depthCheck2 = false;
+				let depthCheckPass = false;				
+
+				let tradeCheck1 = false;
+				let tradeCheckPass = false;
+
+				//console.log('\033[2A'); // up N lines
+				console.log(FgBrightWhite);
+				console.log("  > Monitoring open BUY order... " + Reset);
+
+				// get the order's details
+				getBuyOrderDetails(function() {
+					console.log("    > Status: " + FgBrightWhite + globalData.ordering.orderStatus + Reset);
+					console.log("    > Amount Filled: " + FgBrightYellow + globalData.ordering.percentFilled + Reset);
+					console.log("   --- ");
+
+					// analyze market depth
+					getMarketDepth(function() {
+						process.stdout.write("    > DEPTH requirements: ");
+
+						if (globalData.depth.buyDepth >= (globalData.depth.sellDepth * buyWallMultiplier))
+							depthCheck1 = true;
+
+						if (globalData.depth.buyDepthETH >= buyWallEthRequirement)
+							depthCheck2 = true;
+
+						if (depthCheck1 && depthCheck2) {
+							process.stdout.write(FgBrightGreen + " PASS\r\n" + Reset);
+							depthCheckPass = true;
+						} else {
+							process.stdout.write(FgBrightRed + " FAIL\r\n" + Reset);
+						}
+
+						// analyze trade sentiment
+						getMarketSentiment(function() {
+							process.stdout.write("    > TRADE requirements: ")
+
+							let sentimentWallPercentage = (Math.abs(globalData.sentiment.sellTotalETH) / globalData.depth.buyDepthETH) * 100;
+
+							if(sentimentWallPercentage <= maxEthSalesVsBuyWall)
+								tradeCheck1 = true;
+
+							if (tradeCheck1) {
+								process.stdout.write(FgBrightGreen + " PASS\r\n" + Reset);
+								tradeCheckPass = true;
+							} else {
+								process.stdout.write(FgBrightRed + " FAIL\r\n" + Reset);
+							}
+
+							// check undercut status
+
+						});
+					});					
+				});
+
+				// check for undercut requirement
 
 				break;
-			case 10:
+			case 12: // PERFORM UNDERCUT
 
 				break;
-			case 11:
+			case 13: // CANCEL ORDER
 
 				break;
-			case 12:
+			case 99:
+				stateProcessing = true;		
+
+				console.log(FgBrightWhite);
+				console.log("  > Oops.. you ran out of money!" + Reset);
+				console.log("    > Bot oepration halted");
+
+				globalData.misc.refreshRate = 5000;
 		}
 	}
 
-	setTimeout(arguments.callee, 1000);
+	setTimeout(arguments.callee, globalData.misc.refreshRate);
 }());
 
 // Get bid/ask prices
