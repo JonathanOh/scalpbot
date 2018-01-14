@@ -21,7 +21,7 @@ module.exports = function() {
 	let klineQueue = {};
 	let info = {};
 	let ohlc = {};
-	let options = {recvWindow:60000, reconnect:true};
+	let options = {recvWindow:5000, reconnect:true};
 	
 	const publicRequest = function(url, data, callback, method = "GET") {
 		if ( !data ) data = {};
@@ -104,8 +104,10 @@ module.exports = function() {
 			if ( typeof response.msg !== "undefined" && response.msg == "Filter failure: MIN_NOTIONAL" ) {
 				console.log("Order quantity too small. Must be > 0.01");
 			}
-			if ( callback ) callback(response);
-			else console.log(side+"("+symbol+","+quantity+","+price+") ",response);
+			if ( callback )
+				callback(response);
+			//else 
+				//console.log(side+"("+symbol+","+quantity+","+price+") ",response);
 		}, "POST");
 	};
 	////////////////////////////

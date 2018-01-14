@@ -1,13 +1,13 @@
 // user configuration
-coinSymbol = "ICXETH";
-coinDecimalCount = 6;							// number of decimals used for selected coin
+coinSymbol = "TRXETH";
+coinDecimalCount = 8;							// number of decimals used for selected coin
 
-coinPurchaseAmount = 1;					// amount of coins to purchase when market entry conditions are met
+coinPurchaseAmount = 200;					// amount of coins to purchase when market entry conditions are met
 
 tradeHistorySize = 500;						// max amount of trade history entries to store in our log
 
 midMarketScope = 50;							// mid-market scope (in satoshi) to analyze for market entry
-buyWallMultiplier = 10;						// # of times greater the buyer depth must be compared to the seller depth within mid-market scope
+buyWallMultiplier = 5;						// # of times greater the buyer depth must be compared to the seller depth within mid-market scope
 buyWallEthRequirement = 10;				// minimum required amount of ETH within the buy wall for market entry
 maxEthSalesVsBuyWall = 30;				// maximum allowed % value of total sales within trade history timeframe VS buy depth value for market entry
 tradeHistoryTimeframe = 15; 			// length of time (in seconds) to use from trade history when calculating trade volume
@@ -86,7 +86,7 @@ var globalData = {
 		netResult: -1
 	},
 	ordering: {
-		recvWindow: 99999999,
+		recvWindow: 5000,
 		ethBalance: -1,
 		validFunds: false,
 		submitTime: -1,
@@ -94,6 +94,7 @@ var globalData = {
 		orderTime: -1,
 		orderStatus: -1,
 		percentFilled: -1,
+		orderIsUndercut: false,
 		currentPrice: -1,
 		targetPrice: -1,
 		buyPrice: -1,
@@ -103,6 +104,10 @@ var globalData = {
 		totalTrades: -1,
 		ethStart: -1,
 		ethCurrent: -1
+	},
+	errors: {
+		errorCount: 0,
+		errorMessage: "No errors"
 	},
 	misc: {
 		refreshRate: 200
@@ -328,7 +333,8 @@ const getBidPrice = function(callback) {
 	value = Object.keys(bids)[0];
 	quantity = bids[value];
 
-	globalData.ordering.targetPrice = Number(value).toFixed(coinDecimalCount);
+	globalData.ordering.targetPrice = (Number(value).toFixed(coinDecimalCount) - Number(1 / satoshiMultiplier)).toFixed(coinDecimalCount);
+	globalData.ordering.targetPrice -= .00001
 
 	if (callback) return callback();
 }
@@ -342,15 +348,13 @@ const verifyOrderPlacement = function(callback) {
 		//console.log("openOrders()", json);
 		for (let order of json) {
 			let {i:orderId, s:status, p:price, q:origQty} = order;
-			let timeDelta = 999999;
+			let timeDelta = globalData.ordering.recvWindow;
 
 			// verify if order matches submission
-			if ((order.side 		== 'SELL') 													&&
+			if ((order.side 		== 'BUY') 													&&
 					(order.status 	== 'NEW') 													&&
-					(order.price		== 1) 															&&
-					(order.origQty	== 1)) {
-					//(order.price		== globalData.ordering.targetPrice) &&
-					//(order.origQty 	== coinPurchaseAmount)) {
+					(order.price		== globalData.ordering.targetPrice) &&
+					(order.origQty 	== coinPurchaseAmount)) {
 
 				// check time delta
 				timeDelta = Math.abs(Date.now() - order.time);
@@ -381,8 +385,32 @@ const getBuyOrderDetails = function(callback) {
 	});
 }
 
-const adjustBidPrice = function(callback) {
-	// compare 
+const getUndercutStatus = function(callback) {
+	// reset variables
+	orderIsUndercut	= false;
+
+	// get the highest bid price
+	value = Object.keys(bids)[0];
+
+	// check for an undercut
+	if (globalData.ordering.targetPrice < value)
+		globalData.ordering.orderIsUndercut = true
+
+	if (callback) return callback();
+}
+
+const cancelOrder = function(callback) {
+	binance.cancel(coinSymbol, globalData.ordering.orderId, function(response) {
+		//console.log("cancel() response", response);
+
+		let {i:orderId} = response;
+
+		// check the order cancel response
+		if (response.orderId == globalData.ordering.orderId)
+			globalData.ordering.orderId = -1;
+
+		if (callback) return callback();
+	});								
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -513,6 +541,8 @@ var stateProcessing = false;
 						// reset processing flag & proceed
 					  stateProcessing = false;
 					});
+				} else {
+					stateProcessing = false;
 				}
 				break;
 			case 6: // MARKET ENTRY VALIDATION [TRADE SENTIMENT]
@@ -527,8 +557,8 @@ var stateProcessing = false;
 				getMarketSentiment(function() {
 					sentimentWallPercentage = (Math.abs(globalData.sentiment.sellTotalETH) / globalData.depth.buyDepthETH) * 100;
 
-					console.log("    > Total BID wall: " + FgBrightGreen + globalData.depth.buyDepthETH + Reset);
-					console.log("    > Total ETH sold: " + FgBrightRed + Math.abs(globalData.sentiment.sellTotalETH) + Reset);
+					console.log("    > Total ETH sold: " + FgBrightRed + Math.abs(globalData.sentiment.sellTotalETH) + " ETH" + Reset);
+					console.log("    > Total BID wall: " + FgBrightGreen + globalData.depth.buyDepthETH + " ETH" + Reset);					
 					console.log("    > % of BID wall: " + FgBrightYellow + sentimentWallPercentage.toFixed(2) + " %" + Reset);					
 					console.log("   --- ");
 
@@ -540,8 +570,6 @@ var stateProcessing = false;
 						state--;
 					}
 				});
-
-				state++; // testing
 
 				// reset processing flag & proceed
 			  stateProcessing = false;
@@ -569,6 +597,7 @@ var stateProcessing = false;
 
 				validateFunds(function() {
 					console.log("    > Purchase amount: " + FgBrightYellow + coinPurchaseAmount + Reset + " " + coinSymbol);
+					console.log("    > Target price: " + FgBrightYellow + globalData.ordering.targetPrice + Reset);
 					console.log("    > Required: " + FgBrightYellow + fundsRequired + Reset + " ETH");
 					console.log("    > Available: " + FgBrightYellow + globalData.ordering.ethBalance + Reset + " ETH");
 					console.log("   --- ");
@@ -587,11 +616,11 @@ var stateProcessing = false;
 				break;
 			case 9: // PLACE LIMIT ORDER
 				stateProcessing = true;	
-				//console.log('\033[2A'); // up N lines
+
 				console.log(FgBrightWhite);
 				process.stdout.write("  > Submitting limit order request... " + Reset);
 
-				//binance.buy(coinSymbol, coinPurchaseAmount, globalData.ordering.targetPrice);
+				binance.buy(coinSymbol, coinPurchaseAmount, globalData.ordering.targetPrice);
 				globalData.ordering.submitTime = Date.now();
 
 				process.stdout.write(FgBrightGreen);
@@ -639,7 +668,6 @@ var stateProcessing = false;
 				let tradeCheck1 = false;
 				let tradeCheckPass = false;
 
-				//console.log('\033[2A'); // up N lines
 				console.log(FgBrightWhite);
 				console.log("  > Monitoring open BUY order... " + Reset);
 
@@ -647,10 +675,12 @@ var stateProcessing = false;
 				getBuyOrderDetails(function() {
 					console.log("    > Status: " + FgBrightWhite + globalData.ordering.orderStatus + Reset);
 					console.log("    > Amount Filled: " + FgBrightYellow + globalData.ordering.percentFilled + Reset);
-					console.log("   --- ");
+
+					// if order is filled, continue
 
 					// analyze market depth
 					getMarketDepth(function() {
+						console.log("   --- ");						
 						process.stdout.write("    > DEPTH requirements: ");
 
 						if (globalData.depth.buyDepth >= (globalData.depth.sellDepth * buyWallMultiplier))
@@ -672,7 +702,7 @@ var stateProcessing = false;
 
 							let sentimentWallPercentage = (Math.abs(globalData.sentiment.sellTotalETH) / globalData.depth.buyDepthETH) * 100;
 
-							if(sentimentWallPercentage <= maxEthSalesVsBuyWall)
+							if (sentimentWallPercentage <= maxEthSalesVsBuyWall)
 								tradeCheck1 = true;
 
 							if (tradeCheck1) {
@@ -682,29 +712,79 @@ var stateProcessing = false;
 								process.stdout.write(FgBrightRed + " FAIL\r\n" + Reset);
 							}
 
-							// check undercut status
+							// cancel order if market requirements are no longer met
+							if (!depthCheckPass || !tradeCheckPass) {
+								state = 12; // cancel order
+								stateProcessing = false;
+							} else {
+								// check undercut status
+								process.stdout.write("    > Order book position: ");
 
+								getUndercutStatus(function() {
+									if (!globalData.ordering.orderIsUndercut) {
+										process.stdout.write(FgBrightGreen + " ON TOP\r\n" + Reset);
+										
+										// partial terminal erase
+										console.log('\033[7A'); // up N lines
+										for (let x = 0; x < 7; x++)
+											console.log("                                            ")
+										console.log('\033[7A'); // up N lines										
+
+										stateProcessing = false
+									} else {
+										process.stdout.write(FgBrightRed + " UNDERCUT\r\n" + Reset);
+
+										state = 12; // cancel order
+										stateProcessing = false;										
+									}
+								});
+							}
 						});
 					});					
 				});
-
-				// check for undercut requirement
-
 				break;
-			case 12: // PERFORM UNDERCUT
+			case 12: // CANCEL ORDER
+				stateProcessing = true;
 
-				break;
-			case 13: // CANCEL ORDER
+				// cancel order if market requirements are no longer met
+				console.log(FgBrightWhite);
+				console.log("  > Cancelling order...... " + Reset);
 
+				cancelOrder(function() {
+					if (globalData.ordering.orderId == -1) {
+						process.stdout.write(FgBrightGreen);
+						process.stdout.write("SUCCESS\r\n" + Reset);
+
+						state = 5; // back to beginning
+						stateProcessing = false;
+					} else {
+						process.stdout.write(FgBrightRed);
+						process.stdout.write("FAILED\r\n" + Reset);
+
+						globalData.errors.errorMessage = "Failed to cancel order";
+
+						state = 98; // report error and halt
+						stateProcessing = false;
+					}
+				});
 				break;
-			case 99:
+			case 98: // CRITICAL ERROR			
+				stateProcessing = true;
+
+				console.log(FgBrightWhite);
+				console.log("  > An error occurred:" + Reset)
+				console.log("    > " + globalData.errors.errorMessage)
+				console.log("    > Bot operation halted");
+
+				globalData.misc.refreshRate = 10000;
+			case 99: // INSUFFICIENT FUNDS
 				stateProcessing = true;		
 
 				console.log(FgBrightWhite);
 				console.log("  > Oops.. you ran out of money!" + Reset);
 				console.log("    > Bot oepration halted");
 
-				globalData.misc.refreshRate = 5000;
+				globalData.misc.refreshRate = 10000;
 		}
 	}
 
