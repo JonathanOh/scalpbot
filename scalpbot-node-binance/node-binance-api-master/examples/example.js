@@ -1,16 +1,16 @@
 // user configuration
-coinSymbol = "TRXETH";
-coinDecimalCount = 8;							// number of decimals used for selected coin
+coinSymbol = "ICXETH";
+coinDecimalCount = 6;							// number of decimals used for selected coin
 
-coinPurchaseAmount = 200;					// amount of coins to purchase when market entry conditions are met
+coinPurchaseAmount = 3;						// amount of coins to purchase when market entry conditions are met
 
 tradeHistorySize = 500;						// max amount of trade history entries to store in our log
 
 midMarketScope = 50;							// mid-market scope (in satoshi) to analyze for market entry
-buyWallMultiplier = 5;						// # of times greater the buyer depth must be compared to the seller depth within mid-market scope
-buyWallEthRequirement = 10;				// minimum required amount of ETH within the buy wall for market entry
+buyWallMultiplier = 20;						// # of times greater the buyer depth must be compared to the seller depth within mid-market scope
+buyWallEthRequirement = 75;				// minimum required amount of ETH within the buy wall for market entry
 maxEthSalesVsBuyWall = 30;				// maximum allowed % value of total sales within trade history timeframe VS buy depth value for market entry
-tradeHistoryTimeframe = 15; 			// length of time (in seconds) to use from trade history when calculating trade volume
+tradeHistoryTimeframe = 30; 			// length of time (in seconds) to use from trade history when calculating trade volume
 
 sellPriceMultiplier = 1.01;				// multiplier value of the purchase price to use as our sell price
 
@@ -30,8 +30,8 @@ midMarketScope /= satoshiMultiplier;
 
 const binance = require('../node-binance-api.js');
 binance.options({
-  'APIKEY':'',
-  'APISECRET':''
+  'APIKEY':'dgqWJDR09pomiXfMN44vRvAspKY6LPplIlqwfmVc3aEl1Np4TuMURdxFU3cqdH41',
+  'APISECRET':'vdN54L3FxkxVdTa11xRjYBOs0QGiKbRk4NogRZYcl3sKWcsdVUVcPhuMZYEJbMkk'
 });
 
 // colors
@@ -93,6 +93,7 @@ var globalData = {
 		orderId: -1,
 		orderTime: -1,
 		orderStatus: -1,
+		orderPrice: -1,
 		percentFilled: -1,
 		orderIsUndercut: false,
 		currentPrice: -1,
@@ -174,8 +175,8 @@ const getMarketDepth = function(callback) {
 	midMarketValue /= 2;
 	midMarketValue += Number(Object.keys(bids)[0]);
 
-	scopeMax = (midMarketValue + midMarketScope).toFixed(coinDecimalCount);
-	scopeMin = (midMarketValue - midMarketScope).toFixed(coinDecimalCount);
+	scopeMax = (midMarketValue + (midMarketScope/2)).toFixed(coinDecimalCount);
+	scopeMin = (midMarketValue - (midMarketScope/2)).toFixed(coinDecimalCount);
 
 	//console.log("-----------------------------------");
 	//console.log("Scope MAX: " + scopeMax);
@@ -273,6 +274,7 @@ const getMarketSentiment = function(callback) {
 }
 
 const getTradeHistory = function(callback) {
+	console.log("start trade history()");
 	// retrieve trade history
 	binance.recentTrades(coinSymbol, function(json) {
 		for ( let trade of json ) {
@@ -286,6 +288,8 @@ const getTradeHistory = function(callback) {
 		// cut the history array down to the user-defined size (if applicable)
 		if (tradeHistory.length >= tradeHistorySize)
 			tradeHistory = tradeHistory.slice(0, tradeHistorySize);
+
+		console.log("finishedTradeHistory()");
 
 		if (callback) return callback();			
 	});
@@ -334,7 +338,6 @@ const getBidPrice = function(callback) {
 	quantity = bids[value];
 
 	globalData.ordering.targetPrice = (Number(value).toFixed(coinDecimalCount) - Number(1 / satoshiMultiplier)).toFixed(coinDecimalCount);
-	globalData.ordering.targetPrice -= .00001
 
 	if (callback) return callback();
 }
@@ -345,22 +348,33 @@ const verifyOrderPlacement = function(callback) {
 
 	// Getting list of open orders
 	binance.openOrders(coinSymbol, function(json) {
-		//console.log("openOrders()", json);
+		console.log("openOrders()", json);
 		for (let order of json) {
 			let {i:orderId, s:status, p:price, q:origQty} = order;
 			let timeDelta = globalData.ordering.recvWindow;
 
+			console.log("targetPrice: " + globalData.ordering.targetPrice);
+			console.log("coinPurchaseAmount: " + coinPurchaseAmount);
+
+			if(order.price == globalData.ordering.targetPr)
+				console.log("price matches..");
+			else
+				console.log("price doesn't match");
+
 			// verify if order matches submission
-			if ((order.side 		== 'BUY') 													&&
-					(order.status 	== 'NEW') 													&&
-					(order.price		== globalData.ordering.targetPrice) &&
-					(order.origQty 	== coinPurchaseAmount)) {
+			if ((order.side 	== 'BUY') &&
+					(order.status == 'NEW') &&
+					(Number(order.price)	 == Number(globalData.ordering.targetPrice)) &&
+					(Number(order.origQty) == Number(coinPurchaseAmount))) {
 
 				// check time delta
 				timeDelta = Math.abs(Date.now() - order.time);
+				console.log(timeDelta);
 
-				if (timeDelta <= globalData.ordering.recvWindow)
+				if (timeDelta <= globalData.ordering.recvWindow) {
 					globalData.ordering.orderId = order.orderId;
+					globalData.ordering.orderPrice = order.price;
+				}
 			}
 		}
 
@@ -434,6 +448,8 @@ var stateProcessing = false;
 			case 0: // unused
 				break;
 			case 1: // INITIALIZATION: START DEPTH WEBSOCKET
+				stateProcessing = true;
+
 				console.log('\033c');
 				console.log(FgBrightWhite);				
 				console.log("  > Initializing..." + Reset);
@@ -453,6 +469,8 @@ var stateProcessing = false;
 
 				break;
 			case 2: // INITIALIZATION: GATHER TRADE HISTORY
+				stateProcessing = true;
+
 				console.log("    > Retrieving market trade history... ");
 
 				// populate our trade hisotry array
@@ -460,14 +478,16 @@ var stateProcessing = false;
 					if (tradeHistory.length >= tradeHistorySize) {
 						console.log("      > Retrieved " + tradeHistory.length + " historical trades!");
 						state++;
-					}
 
-					// reset processing flag & proceed
-					stateProcessing = false;				
+						// reset processing flag & proceed
+						stateProcessing = false;
+					}
 				});
 
 				break;
 			case 3: // INITIALIZATION: START TRADE WEBSCOKET
+				stateProcessing = true;
+
 				console.log("    > Starting market trades WebSocket... ");
 
 				binance.websockets.trades([coinSymbol], function(trade) {
@@ -483,18 +503,14 @@ var stateProcessing = false;
 				});
 
 				// reset processing flag & proceed
+				state = 5;
 			  stateProcessing = false;
-				state++;
-				state++;
 
 				break;
-			case 4: // CHECK FOR OPEN ORDERS (TO DO) testing for now..
-				getMarketSentiment(function() {
-					// reset processing flag & proceed
-					stateProcessing = false;
-				});
-				break;
+			case 4: // Unused.. 
 			case 5: // MARKET ENTRY VALIDATION [DEPTH]
+				stateProcessing = true;
+
 				let multiplierFlag = false;
 				let ethFlag = false;
 
@@ -509,7 +525,7 @@ var stateProcessing = false;
 
 				if(asks) {
 					getMarketDepth(function() {
-						console.log("    > " + FgBrightRed + "ASK" + Reset + " wall : " + globalData.depth.sellDepth.toFixed(0));	
+						console.log("    > " + FgBrightRed + "ASK" + Reset + " wall : " + globalData.depth.sellDepth.toFixed(0) + " (" + globalData.depth.sellDepthETH + " ETH)");	
 						console.log("    > " + FgBrightGreen + "BID" + Reset + " wall : " + globalData.depth.buyDepth.toFixed(0) + " (" + globalData.depth.buyDepthETH + " ETH)");	
 
 						if (globalData.depth.buyDepth > globalData.depth.sellDepth) {
@@ -537,7 +553,7 @@ var stateProcessing = false;
 						if ((multiplierFlag == true) && (ethFlag == true))
 							state++;
 
-						state++; // debugging
+						//state++; // debugging
 						// reset processing flag & proceed
 					  stateProcessing = false;
 					});
@@ -546,6 +562,8 @@ var stateProcessing = false;
 				}
 				break;
 			case 6: // MARKET ENTRY VALIDATION [TRADE SENTIMENT]
+				stateProcessing = true;
+				
 				let sentimentWallPercentage = 100;
 
 				console.log(FgBrightWhite);
@@ -585,6 +603,7 @@ var stateProcessing = false;
 					console.log("    > Target BID price: " + FgBrightGreen + globalData.ordering.targetPrice + Reset);
 
 					state++;
+					state++; // SKIP FUND VALIDATION FOR NOW, TOO SLOW
 					stateProcessing = false;
 				});
 
@@ -644,7 +663,7 @@ var stateProcessing = false;
 				verifyOrderPlacement(function() {
 					// if order was verified, move on.. otherwise keep checkung until timoeut
 					if (globalData.ordering.orderId > 0) {	
-						process.stdout.write(FgBrightGreen + "SUCCESS\r\n" + Reset);
+						process.stdout.write(FgBrightGreen + "SUCCESS\r\n" + Reset + "\007");
 						state++;
 					} else {
 						// check if we've exceeded our order receive window timeout
