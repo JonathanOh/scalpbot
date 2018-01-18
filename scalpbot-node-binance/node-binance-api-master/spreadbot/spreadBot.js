@@ -553,6 +553,33 @@ Number.prototype.toFixedDown = function(digits) {
     return m ? parseFloat(m[1]) : this.valueOf();
 };
 
+var States = {
+	Initial: 0,
+	StartDepthWebSocket: 1,
+	GetTradeHistory: 2,
+	StartTradeWebSocket: 3,
+	SpreadValidation: 4,
+	SellFirstEntryValidation: 5,
+	BuyFirstEntryValidation: 6,
+	TradeSentimentValidation: 7,
+	PreOrderSetupStage1: 8,
+	PlaceLimitOrderStage1: 9,
+	MonitorOpenOrderStage1: 10,
+	CancelOrderPermanent: 11,
+	CancelOrderUndercut: 12,
+	PreOrderSetupStage2: 13,
+	PlaceLimitOrderStage2: 14,
+	MonitorOpenOrderStage2: 15,
+	CancelOrderLossCutStage2: 16,
+	CancelOrderUndercutStage2: 17,
+	MarketOrderLossCutStage2: 18,
+	PostCycleCleanup: 19,
+	ProfitLossOverview: 20,
+	DebuggingHaltTemporary: 97,
+	CriticalError: 98,
+	Purgatory: 99
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -562,7 +589,7 @@ console.log("\r\nStarting: SpreadBot for Binance... \r\n\n");
 globalData.clock.startTime = Date.now();
 
 // initialize state machine
-var state = 0;
+var currentState = States.Initial;
 var stateProcessing = true;
 
 // update account starting stats
@@ -583,9 +610,9 @@ getAccountBalances(function() {
 		stateProcessing = true;
 
 		// begin state-based execution		
-		switch(state)
+		switch(currentState)
 		{
-			case 0: // INITIALIZATION: VERIFY NO OPEN ORDERS EXIST
+			case States.Initial: // INITIALIZATION: VERIFY NO OPEN ORDERS EXIST
 				stateProcessing = true;
 
 				console.log('\033c');
@@ -599,16 +626,16 @@ getAccountBalances(function() {
 					if (response.length > 0) {
 						globalData.errors.errorMessage = "Close all open " + config.coinSymbol + " orders before starting bot!";
 
-						state = 98; // report error and halt
+						currentState = States.CriticalError; // report error and halt
 					} else {
-						state++;
+						currentState = States.StartDepthWebSocket;
 					}
 
 					stateProcessing = false;
 				});
 
 				break;
-			case 1: // INITIALIZATION: START DEPTH WEBSOCKET
+			case States.StartDepthWebSocket: // INITIALIZATION: START DEPTH WEBSOCKET
 				stateProcessing = true;	
 
 				console.log("    > Starting market depth WebtSocket... " + Reset);
@@ -636,11 +663,11 @@ getAccountBalances(function() {
 				});
 
 				// reset processing flag & proceed
-				state++;
+				currentState = States.GetTradeHistory;
 				stateProcessing = false;
 
 				break;
-			case 2: // INITIALIZATION: GATHER TRADE HISTORY
+			case States.GetTradeHistory: // INITIALIZATION: GATHER TRADE HISTORY
 				stateProcessing = true;
 
 				console.log("    > Retrieving market trade history... ");
@@ -653,14 +680,14 @@ getAccountBalances(function() {
 						// update trade sentiment data
 						getMarketSentiment(function() {
 							// reset processing flag & proceed
-							state++;
+							currentState = States.StartTradeWebSocket;
 							stateProcessing = false;
 						});
 					}
 				});
 
 				break;
-			case 3: // INITIALIZATION: START TRADE WEBSCOKET
+			case States.StartTradeWebSocket: // INITIALIZATION: START TRADE WEBSCOKET
 				stateProcessing = true;
 
 				console.log("    > Starting market trades WebSocket... ");
@@ -681,11 +708,11 @@ getAccountBalances(function() {
 				});
 
 				// reset processing flag & proceed
-				state++;
+				currentState = States.SpreadValidation;
 			  stateProcessing = false;
 
 				break;
-			case 4: // MARKET ENTRY VALIDATION [SPREAD]
+			case States.SpreadValidation: // MARKET ENTRY VALIDATION [SPREAD]
 				stateProcessing = true;
 
 				console.log('\033c');
@@ -720,7 +747,7 @@ getAccountBalances(function() {
 
 				if (globalData.depth.spread >= config.marketSpreadRequired) {
 					console.log("    > Result: " + FgBrightGreen + " PASS" + Reset);
-					state++;
+					currentState = States.SellFirstEntryValidation;
 				} else {
 					console.log("    > Result: " + FgBrightRed + " FAIL" + Reset);
 				}
@@ -732,12 +759,12 @@ getAccountBalances(function() {
 				stateProcessing = false;
 
 				break;
-			case 5: // MARKET ENTRY VALIDATION FOR SELL-FIRST CONFIG [ASK WALL PROTECTION]
+			case States.SellFirstEntryValidation: // MARKET ENTRY VALIDATION FOR SELL-FIRST CONFIG [ASK WALL PROTECTION]
 				stateProcesing = true;
 
 				// skip this section if config is set for buy-first
 				if (!config.sellFirst) {
-					state++;
+					currentState = States.BuyFirstEntryValidation;
 					stateProcessing = false;
 					break;
 				}
@@ -752,18 +779,18 @@ getAccountBalances(function() {
 
 				if (globalData.depth.sellDepthETH > config.sellWallProtectionEth) {
 					console.log("    > Result: " + FgBrightGreen + " PASS" + Reset);
-					state = 7; // begin trade sentiment validation
+					currentState = States.TradeSentimentValidation; // begin trade sentiment validation
 				}	else {
 					console.log("    > Result: " + FgBrightRed + " FAIL" + Reset);					
-					state = 4; // return to start
+					currentState = States.SpreadValidation; // return to start
 				}
 
 				// reset processing flag & proceed
-				//state = 7;
+				//currentState = 7;
 				stateProcessing = false;
 
 				break;
-			case 6: // MARKET ENTRY VALIDATION FOR BUY-FIRST CONFIG [BID WALL PROTECTION]
+			case States.BuyFirstEntryValidation: // MARKET ENTRY VALIDATION FOR BUY-FIRST CONFIG [BID WALL PROTECTION]
 				stateProcesing = true;
 
 				console.log(FgBrightWhite);
@@ -776,10 +803,10 @@ getAccountBalances(function() {
 				
 				if (globalData.depth.buyDepthETH > config.buyWallProtectionEth) {
 					console.log("    > Result: " + FgBrightGreen + " PASS"+ Reset);
-					state++;
+					currentState = States.TradeSentimentValidation;
 				}	else {
 					console.log("    > Result: " + FgBrightRed + " FAIL"+ Reset);					
-					state = 4; // return to start
+					currentState = States.SpreadValidation; // return to start
 				}
 
 				// reset processing flag & proceed
@@ -787,7 +814,7 @@ getAccountBalances(function() {
 				stateProcessing = false;	
 
 				break;			
-			case 7: // MARKET ENTRY VALIDATION [TRADE SENTIMENT]
+			case States.TradeSentimentValidation: // MARKET ENTRY VALIDATION [TRADE SENTIMENT]
 				stateProcessing = true;			
 
 				// calculate opposing trade vs safety wall within user-configured scope of time
@@ -809,10 +836,10 @@ getAccountBalances(function() {
 
 					if(sentimentWallPercentage <= config.maxEthTransactionsVsWall) {
 						console.log("    > Sentiment requirement: " + FgBrightGreen + "PASS" + Reset);
-						state++;
+						currentState = States.PreOrderSetupStage1;
 					} else {
 						console.log("    > Sentiment requirement: " + FgBrightRed + "FAIL" + Reset);
-						state = 4; // return to start
+						currentState = States.SpreadValidation; // return to start
 					};					
 				} else {
 					console.log("    > Total BID wall: " + FgBrightGreen + globalData.depth.buyDepthETH.toFixed(2) + " ETH" + Reset);
@@ -824,10 +851,10 @@ getAccountBalances(function() {
 
 					if(sentimentWallPercentage <= config.maxEthTransactionsVsWall) {
 						console.log("    > Sentiment requirement: " + FgBrightGreen + "PASS" + Reset);
-						state++;
+						States.PreOrderSetupStage1;
 					} else {
 						console.log("    > Sentiment requirement: " + FgBrightRed + "FAIL" + Reset);
-						state = 4;
+						currentState = States.SpreadValidation;
 					};
 				}
 
@@ -836,7 +863,7 @@ getAccountBalances(function() {
 				stateProcessing = false;
 
 				break;		
-			case 8: // [STAGE 1] PRE-ORDER SETUP
+			case States.PreOrderSetupStage1: // [STAGE 1] PRE-ORDER SETUP
 				stateProcessing = true;
 
 				// set order stage
@@ -857,12 +884,12 @@ getAccountBalances(function() {
 						globalData.cycleStats.startingValue = Number(globalData.accountBalances.icxBalance);
 					}
 
-					state++;
+					currentState = States.PlaceLimitOrderStage1;
 					stateProcessing = false;
 				});
 
 				break;
-			case 9: // [STAGE 1] PLACE LIMIT ORDER
+			case States.PlaceLimitOrderStage1: // [STAGE 1] PLACE LIMIT ORDER
 				stateProcessing = true;	
 
 				console.log(FgBrightWhite);
@@ -885,19 +912,19 @@ getAccountBalances(function() {
 						// clear screen
 						console.log('\033c');
 
-						state++;
+						currentState = States.MonitorOpenOrderStage1;
 					} else {
 						process.stdout.write(FgBrightRed + "FAILED\r\n" + Reset);
 
 						// initial order failed, restart
-						state = 4;
+						currentState = States.SpreadValidation;
 
 						/*
 						// stop bot upon failure here (for debugging)
 						process.stdout.write(FgBrightRed + "FAILED\r\n" + Reset);
 						globalData.errors.errorMessage = "Order submission failed; server response: \r\n" + response.msg;
 
-						state = 98; // report error and halt
+						currentState = 98; // report error and halt
 						*/
 					}
 
@@ -906,7 +933,7 @@ getAccountBalances(function() {
 				});
 
 				break;
-			case 10: // [STAGE 1] MONITOR OPEN ORDER
+			case States.MonitorOpenOrderStage1: // [STAGE 1] MONITOR OPEN ORDER
 				stateProcessing = true;
 
 				//console.log('\033c');
@@ -931,9 +958,9 @@ getAccountBalances(function() {
 						// save our sell order so we can grab pricing data from it later
 						globalData.ordering.savedOrder = globalData.ordering.order;
 
-						state = 13; // order executed, begin Stage 2
+						currentState = States.PreOrderSetupStage2; // order executed, begin Stage 2
 					} else if (globalData.ordering.order.status == 'CANCELED') {
-						state = 4; // order canceled, restart
+						currentState = States.SpreadValidation; // order canceled, restart
 					} else {
 						console.log("   --- ");
 						process.stdout.write("    > Spread requirement: " );
@@ -942,7 +969,7 @@ getAccountBalances(function() {
 						if (globalData.depth.spread < config.marketSpreadMaintain) {
 							process.stdout.write(FgBrightRed + " FAIL\r\n" + Reset);
 
-							state = 11; // cancel the order, minimum spread no longer met
+							currentState = States.CancelOrderPermanent; // cancel the order, minimum spread no longer met
 						} else {
 							process.stdout.write(FgBrightGreen + " PASS\r\n" + Reset);
 
@@ -956,9 +983,9 @@ getAccountBalances(function() {
 								// TO-DO: NEEDS IMPROVEMENTS
 								// verify whether we can perform an undercut
 								if ((globalData.depth.spread - oneSatoshi) < config.marketSpreadMaintain) {
-									state = 11; // cancel the order, cannot undercut any further
+									currentState = States.CancelOrderPermanent; // cancel the order, cannot undercut any further
 								} else {
-									state = 12; // perform undercut
+									currentState = States.CancelOrderUndercut; // perform undercut
 								}
 							} else {
 								process.stdout.write(FgBrightGreen + "FIRST\r\n");
@@ -969,7 +996,7 @@ getAccountBalances(function() {
 					// update heartbeat (GUI)
 					updateHeartbeat();
 
-					if (state == 10)
+					if (currentState == States.MonitorOpenOrderStage1)
 						process.stdout.write('\033[u'); // restore cursor position
 
 					// reset processing flag & proceed
@@ -977,7 +1004,7 @@ getAccountBalances(function() {
 				});
 
 				break;
-			case 11: // [STAGE 1] CANCEL ORDER [PERMANENT]
+			case States.CancelOrderPermanent: // [STAGE 1] CANCEL ORDER [PERMANENT]
 				stateProcessing = true;
 
 				// cancel order due to undercut
@@ -1000,15 +1027,15 @@ getAccountBalances(function() {
 								// save our order so we can grab pricing data from it later
 								globalData.ordering.savedOrder = globalData.ordering.canceledOrder;
 
-								state = 13; // continue to Stage 2
+								currentState = States.PreOrderSetupStage2; // continue to Stage 2
 							} else {
 								// amount filled meets minimum requirements for Stage 2
-								state = 4; // restart
+								currentState = States.SpreadValidation; // restart
 							}
 						} else {
 							process.stdout.write(FgBrightGreen + "FAILED\r\n" + Reset);
 
-							state = 0; // perform hard restart
+							currentState = States.Initial; // perform hard restart
 						}
 
 						stateProcessing = false;
@@ -1019,15 +1046,15 @@ getAccountBalances(function() {
 								// save our order so we can grab pricing data from it later
 								globalData.ordering.savedOrder = globalData.ordering.order;
 
-								state = 13; // continue to Stage 2
+								currentState = States.PreOrderSetupStage2; // continue to Stage 2
 							}
 						}
-						state = 0; // no server response, perform hard restart
+						currentState = States.Initial; // no server response, perform hard restart
 					}
 				});
 
 				break;
-			case 12: // [STAGE 1] CANCEL ORDER [UNDERCUT]
+			case States.CancelOrderUndercut: // [STAGE 1] CANCEL ORDER [UNDERCUT]
 				stateProcessing = true;
 
 				// cancel order due to undercut
@@ -1049,25 +1076,25 @@ getAccountBalances(function() {
 								// save our order so we can grab pricing data from it later
 								globalData.ordering.savedOrder = globalData.ordering.canceledOrder;
 
-								state = 13; // continue to Stage 2 setup
+								currentState = States.PreOrderSetupStage2; // continue to Stage 2 setup
 							} else {
 								// amount filled meets minimum requirements for Stage 2
-								state = 9; // re-submit order
+								currentState = States.PlaceLimitOrderStage1; // re-submit order
 							}
 						} else {
-							state = 0; // perform hard restart
+							currentState = States.Initial; // perform hard restart
 						}
 					} else {
 						process.stdout.write(FgBrightGreen + "FAILED\r\n" + Reset);
 
-						stage = 0; // no server response, perform hard restart
+						currentState = States.Initial; // no server response, perform hard restart
 					}
 
 					stateProcessing = false;
 				});
 
 				break;
-			case 13: // [STAGE 2] PRE-ORDER SETUP
+			case States.PreOrderSetupStage2: // [STAGE 2] PRE-ORDER SETUP
 				stateProcessing = true;
 
 				// update current account balance information
@@ -1082,12 +1109,12 @@ getAccountBalances(function() {
 					console.log("accountBalances.ethBalance: " + globalData.accountBalances.ethBalance);
 					console.log("ordering.ethBalance:" + globalData.ordering.ethBalance);
 
-					state++;
+					currentState = States.PlaceLimitOrderStage2;
 					stateProcessing = false;
 				});
 
 				break;
-			case 14: // [STAGE 2] PLACE LIMIT ORDER
+			case States.PlaceLimitOrderStage2: // [STAGE 2] PLACE LIMIT ORDER
 				stateProcessing = true;
 
 				console.log('\033c');
@@ -1113,12 +1140,12 @@ getAccountBalances(function() {
 						// clear screen
 						console.log('\033c');
 
-						state++; // continue to monitor open order
+						currentState = States.MonitorOpenOrderStage2; // continue to monitor open order
 					} else {
 						process.stdout.write(FgBrightRed + "FAILED\r\n" + Reset);
 						globalData.errors.errorMessage = "[STAGE 2] Order submission failed; server response: \r\n" + response.msg;
 
-						state = 98; // report error and halt
+						currentState = States.CriticalError; // report error and halt
 					}
 
 					// reset processing flag & proceed
@@ -1126,7 +1153,7 @@ getAccountBalances(function() {
 				});
 
 				break;
-			case 15: // [STAGE 2] MONITOR OPEN ORDER
+			case States.MonitorOpenOrderStage2: // [STAGE 2] MONITOR OPEN ORDER
 				stateProcessing = true;
 
 				let cycleFinished = false;
@@ -1154,12 +1181,12 @@ getAccountBalances(function() {
 						console.log("   --- ");
 						console.log("    > Cycle complete");
 
-						state = 19; // enter post-cycle cleanup
+						currentState = States.PostCycleCleanup; // enter post-cycle cleanup
 					} else if (globalData.ordering.order.status == 'CANCELED') {
 						// error, order failed to cancel
 						globalData.errors.errorMessage = "Stage 2 order abruptly cancelled\r\n" + response;
 
-						state = 98; // order abruptly cancelled (possibly by user); throw error.
+						currentState = States.CriticalError; // order abruptly cancelled (possibly by user); throw error.
 					} else {
 						console.log("   --- ");
 						process.stdout.write("    > Order position: ")
@@ -1173,15 +1200,15 @@ getAccountBalances(function() {
 							// TO-DO: need to improve this logic for more efficiency/profit
 							if (config.sellFirst) {
 								if ((Object.keys(bids)[0] + Number(oneSatoshi)) < globalData.ordering.savedOrder.price) {
-									state = 17; // perform undercut
+									currentState = States.CancelOrderUndercutStage2; // perform undercut
 								} else {
-									state = 16; // market buy and cut losses
+									currentState = States.CancelOrderLossCutStage2; // market buy and cut losses
 								}
 							} else {
 								if ((Object.keys(asks)[0] - Number(oneSatoshi)) > globalData.ordering.savedOrder.price) {
-									state = 17; // perform undercut
+									currentState = States.CancelOrderUndercutStage2; // perform undercut
 								} else {
-									state = 16; // market sell and cut losses
+									currentState = States.CancelOrderLossCutStage2; // market sell and cut losses
 								}
 							}
 						} else {
@@ -1192,7 +1219,7 @@ getAccountBalances(function() {
 					// update heartbeat (aesthetics)
 					updateHeartbeat();
 
-					if (state == 15 && cycleFinished == false)
+					if (currentState == States.MonitorOpenOrderStage2 && cycleFinished == false)
 						process.stdout.write('\033[u'); // restore cursor position
 
 					// reset processing flag & proceed
@@ -1200,7 +1227,7 @@ getAccountBalances(function() {
 				});
 
 				break;
-			case 16: // [STAGE 2] CANCEL ORDER [LOSS-CUT]
+			case States.CancelOrderUndercutStage2: // [STAGE 2] CANCEL ORDER [LOSS-CUT]
 				stateProcessing = true;
 
 				// cancel order due to undercut
@@ -1225,9 +1252,9 @@ getAccountBalances(function() {
 											console.log("ordering.targetAskPrice" + globalData.ordering.targetAskPrice);
 											console.log("  > Insufficient funds to perform market order, restarting...");											
 
-											state = 96; // cycle complete, go to profit/loss screen
+											currentState = States.PostCycleCleanup; // cycle complete, go to profit/loss screen
 										} else {
-											state = 18; // submit market order to cut losses
+											currentState = States.MarketOrderLossCutStage2; // submit market order to cut losses
 										} 
 									} else {
 										if (globalData.accountBalances.icxBalance < config.stageTwoMinimumCoinAmount) {
@@ -1236,30 +1263,30 @@ getAccountBalances(function() {
 											console.log("ordering.targetAskPrice" + globalData.ordering.targetAskPrice);
 											console.log("  > Insufficient funds to perform market order, restarting...");
 
-											state = 96; // cycle complete, go to profit/loss screen
+											currentState = States.PostCycleCleanup; // cycle complete, go to profit/loss screen
 										} else {
-											state = 18; // submit market order to cut losses
+											currentState = States.MarketOrderLossCutStage2; // submit market order to cut losses
 										}
 									}
 								});
 							} else {
-								state = 18; // submit market order to cut losses
+								currentState = States.MarketOrderLossCutStage2; // submit market order to cut losses
 							}
 						} else {
-							state = 0; // perform hard restart
+							currentState = States.Initial; // perform hard restart
 						}
 					} else {
 						process.stdout.write(FgBrightRed + "FAILED\r\n" + Reset);
 						globalData.errors.errorMessage = "[STAGE 2] Order cancellation failed; server response: \r\n" + response.msg;
 
-						state = 98; // report error and halt
+						currentState = States.CriticalError; // report error and halt
 					}
 
 					stateProcessing = false;
 				});
 
 				break;
-			case 17: // [STAGE 2] CANCEL ORDER [UNDERCUT]
+			case States.CancelOrderUndercutStage2: // [STAGE 2] CANCEL ORDER [UNDERCUT]
 				stateProcessing = true;
 
 				// cancel order due to undercut
@@ -1282,7 +1309,7 @@ getAccountBalances(function() {
 											console.log("config.stageTwoMinimumCoinAmount: " + config.stageTwoMinimumCoinAmount);
 											console.log("ordering.targetAskPrice: " + globalData.ordering.targetAskPrice);
 											console.log("  > Insufficient funds to perform market order, restarting...");											
-											state = 96; // cycle complete, go to profit/loss screen
+											currentState = States.PostCycleCleanup; // cycle complete, go to profit/loss screen
 										} else {
 											// re-calculate currency available for re-purchasing
 											globalData.ordering.ethBalance = Number(globalData.accountBalances.ethBalance);
@@ -1293,30 +1320,30 @@ getAccountBalances(function() {
 											console.log("config.stageTwoMinimumCoinAmount" + config.stageTwoMinimumCoinAmount);
 											console.log("ordering.targetAskPrice" + globalData.ordering.targetAskPrice);
 											console.log("  > Insufficient funds to perform market order, restarting...");
-											state = 96; // cycle complete, go to profit/loss screen
+											currentState = States.PostCycleCleanup; // cycle complete, go to profit/loss screen
 									}
 
-									state = 14; // re-submit order after performing an account balance update
+									currentState = States.PlaceLimitOrderStage2; // re-submit order after performing an account balance update
 								})
 							} else {
-								state = 14; // re-submit order
+								currentState = States.PlaceLimitOrderStage2; // re-submit order
 							}
 						} else {
 							console.log("no response during cancellation... restarting");
-							state = 0; // perform hard restart
+							currentState = States.Initial; // perform hard restart
 						}
 					} else {
 						process.stdout.write(FgBrightRed + "FAILED\r\n" + Reset);
 						globalData.errors.errorMessage = "[STAGE 2] Order cancellation failed; server response: \r\n" + response.msg;
 
-						state = 98; // report error and halt
+						currentState = States.CriticalError; // report error and halt
 					}
 
 					stateProcessing = false;
 				});
 
 				break;
-			case 18: // [STAGE 2] PLACE MARKET ORDER TO CUT LOSSES
+			case States.MarketOrderLossCutStage2: // [STAGE 2] PLACE MARKET ORDER TO CUT LOSSES
 				stateProcessing = true;
 
 				console.log(FgBrightWhite);
@@ -1329,7 +1356,7 @@ getAccountBalances(function() {
 						// make sure everything was sold
 
 
-						state = 4; // restart
+						currentState = States.SpreadValidation; // restart
 					} else {
 						process.stdout.write(FgBrightRed + "FAILED\r\n" + Reset);
 						console.log("order response: " + response);
@@ -1341,7 +1368,7 @@ getAccountBalances(function() {
 				});
 
 				break;
-			case 19: // POST-CYCLE CLEANUP
+			case States.PostCycleCleanup: // POST-CYCLE CLEANUP
 				stateProcessing = true
 
 				// increment trade count
@@ -1361,16 +1388,16 @@ getAccountBalances(function() {
 					if (globalData.accountStats.netBalance <= Number(-1 * config.profitLossLimit)) {
 						console.log("Loss limit reached, halting bot...");
 
-						state = 99;
+						currentState = States.Purgatory;
 					} else {
-						state = 4; // restart				
+						currentState = States.SpreadValidation; // restart				
 					}
 
 					stateProcessing = false;	
 				});
 
 				break;
-			case 20: // CYCLE PROFIT/LOSS OVERVIEW
+			case States.ProfitLossOverview: // CYCLE PROFIT/LOSS OVERVIEW
 				stateProcessing = true
 
 				// update current balances (need to make this dynamic at some point)
@@ -1382,12 +1409,12 @@ getAccountBalances(function() {
 				console.log("\r\nRestarting in 2 seconds...");
 
 				setTimeout(function() {
-					state = 4;
+					currentState = States.SpreadValidation;
 					stateProcessing = false;
 				}, 2000);
 
 				break;
-			case 97: // DEBUGGING HALT [TEMPORARY]
+			case States.DebuggingHaltTemporary: // DEBUGGING HALT [TEMPORARY]
 				stateProcessing = true;
 
 				console.log(FgBrightWhite);
@@ -1396,7 +1423,7 @@ getAccountBalances(function() {
 				console.log("    > Bot operation halted");
 
 				break;
-			case 98: // CRITICAL ERROR			
+			case States.CriticalError: // CRITICAL ERROR			
 				stateProcessing = true;
 
 				console.log(FgBrightWhite);
@@ -1407,7 +1434,7 @@ getAccountBalances(function() {
 				globalData.misc.refreshRate = 10000;
 
 				break;
-			case 99: // PURGATORY
+			case States.Purgatory: // PURGATORY
 				stateProcessing = true;
 		}
 	}
