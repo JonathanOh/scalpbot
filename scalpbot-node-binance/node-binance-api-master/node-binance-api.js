@@ -219,8 +219,10 @@ module.exports = function() {
 	};
 	const balanceData = function(data) {
 		let balances = {};
-		for ( let obj of data.balances ) {
-			balances[obj.asset] = {available:obj.free, onOrder:obj.locked};
+		if (data.balances.length > 0) {
+			for ( let obj of data.balances ) {
+				balances[obj.asset] = {available:obj.free, onOrder:obj.locked};
+			}
 		}
 		return balances;
 	};
