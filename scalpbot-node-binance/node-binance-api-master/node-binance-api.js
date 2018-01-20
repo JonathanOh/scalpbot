@@ -22,7 +22,7 @@ module.exports = function() {
 	let info = {};
 	let ohlc = {};
 	let options = {recvWindow:5000, reconnect:true};
-	
+
 	const publicRequest = function(url, data, callback, method = "GET") {
 		if ( !data ) data = {};
 		let opt = {
@@ -41,7 +41,7 @@ module.exports = function() {
 			if ( callback ) callback(JSON.parse(body));
 		});
 	};
-	
+
 	const apiRequest = function(url, callback, method = "GET") {
 		if ( !options.APIKEY ) throw "apiRequest: Invalid API Key";
 		let opt = {
@@ -60,7 +60,7 @@ module.exports = function() {
 			if ( callback ) callback(JSON.parse(body));
 		});
 	};
-		
+
 	const signedRequest = function(url, data, callback, method = "GET") {
 		if ( !options.APISECRET ) throw "signedRequest: Invalid API Secret";
 		if ( !data ) data = {};
@@ -80,12 +80,13 @@ module.exports = function() {
 				'X-MBX-APIKEY': options.APIKEY
 			}
 		};
+
 		request(opt, function(error, response, body) {
 			if ( !response || !body ) throw "signedRequest error: "+error;
 			if ( callback ) callback(JSON.parse(body));
 		});
 	};
-	
+
 	const order = function(side, symbol, quantity, price, flags = {}, callback = false) {
 		let opt = {
 			symbol: symbol,
@@ -106,7 +107,7 @@ module.exports = function() {
 			}
 			if ( callback )
 				callback(response);
-			//else 
+			//else
 				//console.log(side+"("+symbol+","+quantity+","+price+") ",response);
 		}, "POST");
 	};
@@ -388,7 +389,7 @@ module.exports = function() {
 		},
 		options: function(opt) {
 			options = opt;
-			if ( typeof options.recvWindow == "undefined" ) options.recvWindow = 60000;
+			if ( typeof options.recvWindow == "undefined" ) options.recvWindow = 5000;
 			if ( typeof options.reconnect == "undefined" ) options.reconnect = true;
 		},
 		buy: function(symbol, quantity, price, flags = {}, callback = false) {
@@ -460,7 +461,7 @@ module.exports = function() {
 			publicRequest(base+"v1/depth", {symbol:symbol, limit:limit}, function(data) {
 				return callback.call(this, depthData(data), symbol);
 			});
-		},		
+		},
 		prices: function(callback) {
 			request(base+"v1/ticker/allPrices", function(error, response, body) {
 				if ( !response || !body ) throw "allPrices error: "+error;
@@ -521,7 +522,7 @@ module.exports = function() {
 		historicalTrades: function(symbol, callback, limit = 500) {
 			signedRequest(base+"v1/historicalTrades", {symbol:symbol, limit:limit}, callback);
 		},
-		// convert chart data to highstock array [timestamp,open,high,low,close] 
+		// convert chart data to highstock array [timestamp,open,high,low,close]
 		highstock: function(chart, include_volume = false) {
 			let array = [];
 			for ( let timestamp in chart ) {
