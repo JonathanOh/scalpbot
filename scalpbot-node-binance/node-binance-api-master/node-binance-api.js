@@ -21,7 +21,7 @@ module.exports = function() {
 	let klineQueue = {};
 	let info = {};
 	let ohlc = {};
-	let options = {recvWindow:5000, reconnect:true};
+	let options = {recvWindow:8000, reconnect:true};
 
 	const publicRequest = function(url, data, callback, method = "GET") {
 		if ( !data ) data = {};
@@ -389,7 +389,7 @@ module.exports = function() {
 		},
 		options: function(opt) {
 			options = opt;
-			if ( typeof options.recvWindow == "undefined" ) options.recvWindow = 5000;
+			if ( typeof options.recvWindow == "undefined" ) options.recvWindow = 8000;
 			if ( typeof options.reconnect == "undefined" ) options.reconnect = true;
 		},
 		buy: function(symbol, quantity, price, flags = {}, callback = false) {

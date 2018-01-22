@@ -978,7 +978,7 @@ getAccountBalances(function() {
 				process.stdout.write("  > Requirement failure, cancelling order... " + Reset);
 
 				// cancel the order
-				cancelOrder(function(response) {
+				sb.updateOrderStatus(function(response) {
 					// make sure we got a response from the server
 					if (response) {
 						if (globalData.ordering.canceledOrder.status == 'CANCELED') {
