@@ -1,18 +1,3 @@
-///////////////////////////////////////////
-//
-//   BOT CONFIGURATION
-//
-///////////////////////////////////////////
-
-module.exports = function() {
-	'use strict';
-	const binance = require('../../node-binance-api.js');
-
-	binance.options({
-	  'APIKEY':'dgqWJDR09pomiXfMN44vRvAspKY6LPplIlqwfmVc3aEl1Np4TuMURdxFU3cqdH41',
-	  'APISECRET':'vdN54L3FxkxVdTa11xRjYBOs0QGiKbRk4NogRZYcl3sKWcsdVUVcPhuMZYEJbMkk'
-	});
-
 	var settings = {
 		coinPair: "XRPETH",
 		coinSymbol: 'XRP',
@@ -45,34 +30,3 @@ module.exports = function() {
 		tradeHistoryTimeframe: 20, 					// length of time (in seconds) to use from trade history when calculating trade sentiment
 		maxTransactionPercentVsBuyWall: 25,	// maximum allowed % value of total transactions against the protection wall within the search timeframe
 	}
-
-	///////////////////////////////////////////
-	//
-	//   DO NOT MODIFY BEYOND THIS POINT!
-	//
-	///////////////////////////////////////////
-
-	var ordering = {
-		stage: 1,
-		orderIsUndercut: false,
-		targetAskPrice: NaN,
-		targetBidPrice: NaN,
-		order: {},
-		savedOrder: {},
-		canceledOrder: {},
-	}
-
-	var satoshiMultiplier = Math.pow(10, settings.coinDecimalCount); 	// multiplier used for calculating satoshi value
-	var oneSatoshi = (1 / satoshiMultiplier);													// calculate the decimal value of one satoshi for the current coin
-
-	///////////////////////////////////////////
-	///////////////////////////////////////////
-
-	return {
-		settings: settings,
-		binance: binance,
-		ordering: ordering,
-		satoshiMultiplier: satoshiMultiplier,
-		oneSatoshi: oneSatoshi,
-	}
-}();

@@ -5,9 +5,9 @@
 ///////////////////////////////////////////
 
 const async = require('async');
-const config = require('../spreadbot_2_0/libs/userConfig.js');
-const color = require('../spreadbot_2_0/libs/terminalColors.js');
-const sb = require('../spreadbot_2_0/libs/supportFunctions.js');
+const config = require('../sb_icx/libs/userConfig.js');
+const color = require('../sb_icx/libs/terminalColors.js');
+const sb = require('../sb_icx/libs/supportFunctions.js');
 const binance = config.binance;
 
 ///////////////////////////////////////////
@@ -456,11 +456,13 @@ sb.updateAccountBalances(function() {
 
 							// check fill quantity to see if minimum requirements are met
 							if (sb.ordering.stageOneFilled >= config.settings.stageOneMinimumFillAmount) {
+                console.log("stageOneFilled >= stageOneMinimumFillAmount");
 								// save our order so we can grab pricing data from it later
 								sb.ordering.savedOrder = sb.ordering.canceledOrder;
 
 								state = states.placeLimitOrderStage2; // continue to Stage 2
 							} else {
+                console.log("stageOneFilled < stageOneMinimumFillAmount");
 								state = states.placeLimitOrderStage1; // re-submit order
 							}
 						} else {

@@ -6,8 +6,8 @@
 
 module.exports = function() {
 	'use strict';
-	const config = require('../../sb_xrp/libs/userConfig.js');
-	const color = require('../../sb_xrp/libs/terminalColors.js');
+	const config = require('../../sb_icx/libs/userConfig.js');
+	const color = require('../../sb_icx/libs/terminalColors.js');
 	const binance = config.binance;
 
 	// auto-updated websocket variables
@@ -386,6 +386,12 @@ module.exports = function() {
 
 		getTargetPrice(function() {
 			if (ordering.stage == 1) { // [STAGE 1] - INITIAL ORDER
+				console.log("placeLimitOrder()");
+				console.log("settings.purchaseAmount: " + config.settings.purchaseAmount);
+				console.log("ordering.stageOneFilled: " + ordering.stageOneFilled);
+				console.log("ordering.stageTwoFilled: " + ordering.stageTwoFilled);
+				console.log("calculated order qty: " + Number(config.settings.purchaseAmount) - Number(ordering.stageOneFilled));
+
 				binance.buy(config.settings.coinPair, Number(config.settings.purchaseAmount) - Number(ordering.stageOneFilled), ordering.targetBidPrice, {}, function(response) {
 					//console.log(response);
 
@@ -399,6 +405,7 @@ module.exports = function() {
 
 			if (ordering.stage == 2) { // [STAGE 2] - PROFIT ORDER
 				console.log("placeLimitOrder()");
+				console.log("settings.purchaseAmount: " + config.settings.purchaseAmount);
 				console.log("ordering.stageOneFilled: " + ordering.stageOneFilled);
 				console.log("ordering.stageTwoFilled: " + ordering.stageTwoFilled);
 				console.log("calculated order qty: " + (Number(ordering.stageOneFilled) + Number(ordering.leftoverToFill) - Number(ordering.stageTwoFilled)));

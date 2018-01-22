@@ -9,8 +9,8 @@ module.exports = function() {
 	const binance = require('../../node-binance-api.js');
 
 	binance.options({
-	  'APIKEY':'',
-	  'APISECRET':''
+	  'APIKEY':'dgqWJDR09pomiXfMN44vRvAspKY6LPplIlqwfmVc3aEl1Np4TuMURdxFU3cqdH41',
+	  'APISECRET':'vdN54L3FxkxVdTa11xRjYBOs0QGiKbRk4NogRZYcl3sKWcsdVUVcPhuMZYEJbMkk'
 	});
 
 	var settings = {

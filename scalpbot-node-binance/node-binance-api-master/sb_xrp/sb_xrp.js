@@ -5,9 +5,9 @@
 ///////////////////////////////////////////
 
 const async = require('async');
-const config = require('../sb_xrp//libs/userConfig.js');
-const color = require('../sb_xrp//libs/terminalColors.js');
-const sb = require('../sb_xrp/libs/supportFunctions.js');
+const config = require('../sb_icx/libs/userConfig.js');
+const color = require('../sb_icx/libs/terminalColors.js');
+const sb = require('../sb_icx/libs/supportFunctions.js');
 const binance = config.binance;
 
 ///////////////////////////////////////////
@@ -423,7 +423,7 @@ sb.updateAccountBalances(function() {
               process.stdout.write(color.FgBrightGreen + "FAILED\r\n" + color.Reset);
 
               // stop bot upon failure here (for debugging)
-              errorMsg = "[STAGE 1] Order cancellation failed; server response: \r\n" + response.msg;
+              errorMsg = "[STAGE 1] Order submission failed; server response: \r\n" + response.msg;
   						state = states.criticalError; // end cycle
 						}
 					} else {
@@ -456,18 +456,20 @@ sb.updateAccountBalances(function() {
 
 							// check fill quantity to see if minimum requirements are met
 							if (sb.ordering.stageOneFilled >= config.settings.stageOneMinimumFillAmount) {
+                console.log("stageOneFilled >= stageOneMinimumFillAmount");
 								// save our order so we can grab pricing data from it later
 								sb.ordering.savedOrder = sb.ordering.canceledOrder;
 
 								state = states.placeLimitOrderStage2; // continue to Stage 2
 							} else {
+                console.log("stageOneFilled < stageOneMinimumFillAmount");
 								state = states.placeLimitOrderStage1; // re-submit order
 							}
 						} else {
   						process.stdout.write(color.FgBrightGreen + "FAILED\r\n" + color.Reset);
 
               // stop bot upon failure here (for debugging)
-              errorMsg = "[STAGE 1] Order submission failed; server response: \r\n" + response.msg;
+              errorMsg = "[STAGE 1] Order cancellation failed; server response: \r\n" + response.msg;
   						state = states.criticalError; // end cycle
 						}
 					} else {
