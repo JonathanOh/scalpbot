@@ -679,6 +679,9 @@ sb.updateAccountBalances(function() {
               if ((Number(config.settings.purchaseAmount) + Number(sb.ordering.leftoverToFill) - Number(sb.ordering.stageTwoFilled)) > config.settings.stageTwoMinimumFillAmount) {
               	state = states.placeLimitOrderStage2; // re-submit order
               } else {
+                // update leftoverToFill amount
+                sb.ordering.leftoverToFill = Number(config.settings.purchaseAmount) + Number(sb.ordering.leftoverToFill) - Number(sb.ordering.stageTwoFilled);
+
                 state = states.cycleCleanup;
               }
 						} else {

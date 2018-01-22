@@ -394,7 +394,7 @@ module.exports = function() {
 				console.log("ordering.stageTwoFilled: " + ordering.stageTwoFilled);
 				console.log("calculated order qty: " + (Number(config.settings.purchaseAmount) - Number(ordering.stageOneFilled)));
 
-				binance.buy(config.settings.coinPair, Number(config.settings.purchaseAmount) - Number(ordering.stageOneFilled), ordering.targetBidPrice, {}, function(response) {
+				binance.buy(config.settings.coinPair, Number(config.settings.purchaseAmount - ordering.stageOneFilled).toFixedDown(2), ordering.targetBidPrice, {}, function(response) {
 					//console.log(response);
 
 					// save the order information if it was successful
@@ -412,7 +412,7 @@ module.exports = function() {
 				console.log("ordering.stageTwoFilled: " + ordering.stageTwoFilled);
 				console.log("calculated order qty: " + (Number(ordering.stageOneFilled) + Number(ordering.leftoverToFill) - Number(ordering.stageTwoFilled)));
 
-				binance.sell(config.settings.coinPair, Number(ordering.stageOneFilled) + Number(ordering.leftoverToFill) - Number(ordering.stageTwoFilled), ordering.targetAskPrice, {}, function(response) {
+				binance.sell(config.settings.coinPair, Number(Number(ordering.stageOneFilled) + Number(ordering.leftoverToFill) - Number(ordering.stageTwoFilled)).toFixedDown(2), ordering.targetAskPrice, {}, function(response) {
 					//console.log(response);
 					if (callback) return callback(response);
 				});
@@ -470,6 +470,11 @@ module.exports = function() {
 		});
 	}
 
+	Number.prototype.toFixedDown = function(digits) {
+	    var re = new RegExp("(\\d+\\.\\d{" + digits + "})(\\d)"),
+	        m = this.toString().match(re);
+	    return m ? parseFloat(m[1]) : this.valueOf();
+	};
 
 	return {
 		checkForOpenOrders: function checkForOpenOrders(callback) {

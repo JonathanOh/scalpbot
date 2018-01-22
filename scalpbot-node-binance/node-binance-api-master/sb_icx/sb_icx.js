@@ -669,16 +669,17 @@ sb.updateAccountBalances(function() {
               if (sb.ordering.stageTwoFilled > config.settings.purchaseAmount) {
                 // re-calculate our leftover quantity
                 console.log("leftover quantity fill detected:");
-                console.log("ordering.leftoverToFill: " + sb.ordering.leftoverToFill);
                 sb.ordering.leftoverToFill = (sb.ordering.stageTwoFilled - config.settings.purchaseAmount);
+                console.log("ordering.leftoverToFill: " + sb.ordering.leftoverToFill);
               }
-
-              console.log("final leftoverToFill: " + sb.ordering.leftoverToFill);
 
               // check fill quantity to see if minimum requirements are met for a re-list
               if ((Number(config.settings.purchaseAmount) + Number(sb.ordering.leftoverToFill) - Number(sb.ordering.stageTwoFilled)) > config.settings.stageTwoMinimumFillAmount) {
               	state = states.placeLimitOrderStage2; // re-submit order
               } else {
+                // update leftoverToFill amount
+                sb.ordering.leftoverToFill = Number(config.settings.purchaseAmount) + Number(sb.ordering.leftoverToFill) - Number(sb.ordering.stageTwoFilled);
+
                 state = states.cycleCleanup;
               }
 						} else {
