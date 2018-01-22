@@ -158,6 +158,7 @@ sb.updateAccountBalances(function() {
 				console.log(color.FgBrightWhite + "    SESSION STATS:" + color.Reset)
 				console.log("  -------------------------------------");
 				console.log("    > Run time                 : " + color.FgBrightWhite + sb.clock._d + "d " + sb.clock._h + "h " + sb.clock._m + "m " + sb.clock._s + "s" + color.Reset);
+        console.log("    > Coin pair                : " + color.FgBrightWhite + config.settings.coinPair + color.Reset);
 				console.log("    > Total trades completed   : " + color.FgBrightWhite + sb.accountStats.totalTrades + color.Reset);
 				console.log("    > Account starting balance : " + color.FgBrightWhite + Number(sb.accountStats.startingValue).toFixed(6) + color.Reset);
 				console.log("    > Account current balance  : " + color.FgBrightWhite + Number(sb.accountBalances[config.settings.purchasingCurrency]).toFixed(6) + color.Reset)

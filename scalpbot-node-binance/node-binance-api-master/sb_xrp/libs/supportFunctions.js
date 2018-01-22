@@ -6,8 +6,8 @@
 
 module.exports = function() {
 	'use strict';
-	const config = require('../../sb_icx/libs/userConfig.js');
-	const color = require('../../sb_icx/libs/terminalColors.js');
+	const config = require('../../sb_xrp/libs/userConfig.js');
+	const color = require('../../sb_xrp/libs/terminalColors.js');
 	const binance = config.binance;
 
 	// auto-updated websocket variables
