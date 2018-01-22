@@ -449,7 +449,7 @@ module.exports = function() {
 	const cancelOrder = function(callback) {
 		binance.cancel(config.settings.coinPair, ordering.order.orderId, function(response) {
 			if (response) {
-				//console.log(response);
+				console.log(response);
 
 				// validate the order status now shows as 'CANCELED'
 				getOrderStatus(function() {

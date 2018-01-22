@@ -5,9 +5,9 @@
 ///////////////////////////////////////////
 
 const async = require('async');
-const config = require('../sb_xrp/libs/userConfig.js');
-const color = require('../sb_xrp/libs/terminalColors.js');
-const sb = require('../sb_xrp/libs/supportFunctions.js');
+const config = require('../sb_ada/libs/userConfig.js');
+const color = require('../sb_ada/libs/terminalColors.js');
+const sb = require('../sb_ada/libs/supportFunctions.js');
 const binance = config.binance;
 
 ///////////////////////////////////////////

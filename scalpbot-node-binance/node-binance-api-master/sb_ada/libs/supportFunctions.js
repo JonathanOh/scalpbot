@@ -6,8 +6,8 @@
 
 module.exports = function() {
 	'use strict';
-	const config = require('../../sb_icx/libs/userConfig.js');
-	const color = require('../../sb_icx/libs/terminalColors.js');
+	const config = require('../../sb_ada/libs/userConfig.js');
+	const color = require('../../sb_ada/libs/terminalColors.js');
 	const binance = config.binance;
 
 	// auto-updated websocket variables
@@ -449,15 +449,14 @@ module.exports = function() {
 	const cancelOrder = function(callback) {
 		binance.cancel(config.settings.coinPair, ordering.order.orderId, function(response) {
 			if (response) {
-				console.log("cancelOrder() response: " + response);
+				console.log(response);
 
 				// validate the order status now shows as 'CANCELED'
 				getOrderStatus(function() {
 					if (ordering.order.status == 'CANCELED') {
 						// save this order (shadow copy)
-						console.log("ordering.order: " + ordering.order);
 						ordering.canceledOrder = ordering.order;
-						console.log("ordering.canceledOrder: " + ordering.canceledOrder);
+						console.log(ordering.canceledOrder);
 
 						// delete our global order object
 						ordering.order = NaN;
@@ -466,7 +465,6 @@ module.exports = function() {
 					if (callback) return callback(true);
 				});
 			} else {
-				console.log("cancelOrder() status != canceled");
 				if (callback) return callback(false);
 			}
 		});

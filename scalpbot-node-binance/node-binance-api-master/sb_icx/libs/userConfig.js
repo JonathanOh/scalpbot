@@ -23,7 +23,7 @@ module.exports = function() {
 
 		approxParentCoinValue: 1050,				// approximate value of the coin being traded against (i.e. ETH or BTC)
 
-		purchaseAmount: 20,									// amount of coins to purchase/sell when market entry conditions are met
+		purchaseAmount: 15,									// amount of coins to purchase/sell when market entry conditions are met
 		tradeHistorySize: 500,							// max amount of trade history entries to store in our log
 
 		profitLossLimit: 0.2,								// maximum amount of value which can be lost before the bot will halt (this needs to be a positive number)

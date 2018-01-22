@@ -430,6 +430,36 @@ sb.updateAccountBalances(function() {
 						} else {
               process.stdout.write(color.FgBrightGreen + "FAILED\r\n" + color.Reset);
 
+              console.log("ordering.order.orderId: " + sb.ordering.order.orderId);
+              console.log("ordering.order.status: " + sb.ordering.order.status);
+
+              // check to see if the order was filled during the cancellation
+              getOrderStatus(function() {
+                console.log(sb.ordering.order.status);
+                // order was filled before cancellation could occur
+      					if (sb.ordering.order.status == 'FILLED') {
+                  console.log("    > Order was filled prior to cancellation, proceding to Stage 2...");
+
+                  // update stage 1 fill total
+                  sb.ordering.stageOneFilled += Number(sb.ordering.order.executedQty);
+
+                  // update our net transaction value for this cycle
+                  sb.cycleStats.netValue -= (sb.ordering.order.executedQty * sb.ordering.order.price);
+                  console.log("cycleStats.netValue: " + sb.cycleStats.netValue);
+
+      						// save our sell order so we can grab pricing data from it later
+      						sb.ordering.savedOrder = sb.ordering.order;
+
+                  state = states.placeLimitOrderStage2; // continue to Stage 2
+                } else {
+                  // stop bot upon failure here (for debugging)
+                  errorMsg = "[STAGE 1] Order cancellation failed; server response: \r\n" + response.msg;
+      						state = states.criticalError; // throw error
+
+  						    //state = states.initialize; // no server response, hard reset
+                }
+              });
+
               // stop bot upon failure here (for debugging)
               errorMsg = "[STAGE 1] Order submission failed; server response: \r\n" + response.msg;
   						state = states.criticalError; // end cycle
@@ -489,8 +519,9 @@ sb.updateAccountBalances(function() {
 
             // check to see if the order was filled during the cancellation
             getOrderStatus(function() {
+              console.log(sb.ordering.order.status);
               // order was filled before cancellation could occur
-    					if (ordering.order.status == 'FILLED') {
+    					if (sb.ordering.order.status == 'FILLED') {
                 console.log("    > Order was filled prior to cancellation, proceding to Stage 2...");
 
                 // update stage 1 fill total
@@ -684,6 +715,9 @@ sb.updateAccountBalances(function() {
               }
 						} else {
               process.stdout.write(color.FgBrightRed + "FAILED\r\n" + color.Reset);
+
+              console.log("ordering.order.orderId: " + sb.ordering.order.orderId);
+
   						errorMsg = "[STAGE 2] Order cancellation failed; server response: \r\n" + response.msg;
 
   						state = states.criticalError; // throw error
@@ -712,7 +746,6 @@ sb.updateAccountBalances(function() {
 					if (response) {
 						if (sb.ordering.canceledOrder.status == 'CANCELED') {
 							process.stdout.write(color.FgBrightGreen + "SUCCESS\r\n" + color.Reset);
-              console.log(response);
 
               // update fill quantity
 							sb.ordering.stageTwoFilled += Number(sb.ordering.canceledOrder.executedQty);
@@ -743,6 +776,8 @@ sb.updateAccountBalances(function() {
 						} else {
               process.stdout.write(color.FgBrightRed + "FAILED\r\n" + color.Reset);
   						errorMsg = "[STAGE 2] Order cancellation failed; server response: \r\n" + response.msg;
+
+              console.log("ordering.order.orderId: " + sb.ordering.order.orderId);
 
   						state = states.criticalError; // throw error
 						}
