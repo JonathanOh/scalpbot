@@ -75,8 +75,9 @@ console.log("\r\nStarting: SpreadBot for Binance... \r\n\n");
 // define our startup time
 sb.clock.startTime = Date.now();
 
-// update account starting stats
-sb.accountStats.totalTrades = 0;
+// initialize session stats
+sb.sessionStats.totalTrades = 0;
+sb.sessionStats.netValue = 0;
 
 // update account accountBalances
 sb.updateAccountBalances(function() {
@@ -159,24 +160,23 @@ sb.updateAccountBalances(function() {
 				console.log("  -------------------------------------");
 				console.log("    > Run time                 : " + color.FgBrightWhite + sb.clock._d + "d " + sb.clock._h + "h " + sb.clock._m + "m " + sb.clock._s + "s" + color.Reset);
         console.log("    > Coin pair                : " + color.FgBrightWhite + config.settings.coinPair + color.Reset);
-				console.log("    > Total trades completed   : " + color.FgBrightWhite + sb.accountStats.totalTrades + color.Reset);
-				console.log("    > Account starting balance : " + color.FgBrightWhite + Number(sb.accountStats.startingValue).toFixed(6) + color.Reset);
-				console.log("    > Account current balance  : " + color.FgBrightWhite + Number(sb.accountBalances[config.settings.purchasingCurrency]).toFixed(6) + color.Reset)
+				console.log("    > Total trades completed   : " + color.FgBrightWhite + sb.sessionStats.totalTrades + color.Reset);
+				console.log("    > Account current balance  : " + color.FgBrightWhite + Number(sb.accountBalances[config.settings.purchasingCurrency]).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency)
         console.log("    > Leftover coins to fill   : " + color.FgBrightWhite + sb.ordering.leftoverToFill + color.Reset);
         console.log("   --- ");
 
 				if (sb.cycleStats.netValue >= 0)
-					console.log("    > Last cycle profit        : " + color.FgBrightGreen + Number(sb.cycleStats.netValue).toFixed(6) + color.Reset + " " + config.settings.purchasingCurrency);
+					console.log("    > Last cycle profit        : " + color.FgBrightGreen + Number(sb.cycleStats.netValue).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency);
 				else
-					console.log("    > Last cycle loss          : " + color.FgBrightRed + Number(sb.cycleStats.netValue).toFixed(6) + color.Reset + " " + config.settings.purchasingCurrency);
+					console.log("    > Last cycle loss          : " + color.FgBrightRed + Number(sb.cycleStats.netValue).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency);
 
 				console.log("   --- ");
 
-				if (sb.accountStats.netValue >= 0) {
-					console.log("    > Total profit             : " + color.FgBrightGreen + Number(sb.accountStats.netValue).toFixed(6) + color.Reset + " " + config.settings.purchasingCurrency + " ( " + color.FgBrightGreen + Number(sb.accountStats.netValue * config.settings.approxParentCoinValue).toFixed(2) + color.Reset + " )");
-					console.log("    > Estimated profit/day     : " + color.FgBrightGreen + Number(sb.clock.estimatedDailyProfit).toFixed(6) + color.Reset + " " + config.settings.purchasingCurrency + " ( " + color.FgBrightGreen + Number(sb.clock.estimatedDailyProfit * config.settings.approxParentCoinValue).toFixed(2) + color.Reset + " )");
+        if (sb.sessionStats.netValue >= 0) {
+					console.log("    > Total profit             : " + color.FgBrightGreen + Number(sb.sessionStats.netValue).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency + " ( " + color.FgBrightGreen + Number(sb.sessionStats.netValue * config.settings.approxParentCoinValue).toFixed(2) + color.Reset + " )");
+					console.log("    > Estimated profit/day     : " + color.FgBrightGreen + Number(sb.clock.estimatedDailyProfit).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency + " ( " + color.FgBrightGreen + Number(sb.clock.estimatedDailyProfit * config.settings.approxParentCoinValue).toFixed(2) + color.Reset + " )");
 				} else {
-					console.log("    > Total loss               : " + color.FgBrightRed + Number(sb.accountStats.netValue).toFixed(6) + color.Reset + " " + config.settings.purchasingCurrency);
+					console.log("    > Total loss               : " + color.FgBrightRed + Number(sb.sessionStats.netValue).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency);
 				}
 
 				// update the run time
@@ -570,7 +570,7 @@ sb.updateAccountBalances(function() {
 						console.log("    > Cycle complete");
 
 						// increment trade count for this session
-						sb.accountStats.totalTrades += 1;
+            sb.sessionStats.totalTrades += 1;
 
             // reset leftoverToFill total
             sb.ordering.leftoverToFill = 0;
@@ -629,6 +629,7 @@ sb.updateAccountBalances(function() {
 
               // update fill quantity
 							sb.ordering.stageTwoFilled += Number(sb.ordering.canceledOrder.executedQty);
+              console.log("ordering.canceledOrder" + sb.ordering.canceledOrder);
               console.log("stageTwoFilled: " + sb.ordering.stageTwoFilled);
 
               // check to see if we've filled or partially filled any leftover quantity
@@ -746,8 +747,12 @@ sb.updateAccountBalances(function() {
         sb.clock.processingDelay = 100;
 
         sb.updateAccountBalances(function() {
+          // update account stats
 					sb.accountStats.netValue = Number(sb.accountBalances[config.settings.purchasingCurrency] - sb.accountStats.startingValue);
 					sb.cycleStats.netValue = (sb.accountBalances[config.settings.purchasingCurrency] - sb.cycleStats.startingValue);
+
+          // update session stats
+          sb.sessionStats.netValue += Number(sb.cycleStats.netValue);
 
 					// hard-stop if loss limit exceeded
 					if (sb.accountStats.netValue <= Number(-1 * config.settings.profitLossLimit)) {

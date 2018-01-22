@@ -64,6 +64,11 @@ module.exports = function() {
 		['XRP']: NaN,
 	}
 
+	var sessionStats = {
+		totalTrades: NaN,
+		netValue: NaN,
+	}
+
 	var cycleStats = {
 		startingValue: NaN,
 		endingValue: NaN,
@@ -71,7 +76,6 @@ module.exports = function() {
 	}
 
 	var accountStats = {
-		totalTrades: NaN,
 		startingValue: NaN,
 		endingValue: NaN,
 		netValue: 0,
@@ -390,7 +394,7 @@ module.exports = function() {
 				console.log("settings.purchaseAmount: " + config.settings.purchaseAmount);
 				console.log("ordering.stageOneFilled: " + ordering.stageOneFilled);
 				console.log("ordering.stageTwoFilled: " + ordering.stageTwoFilled);
-				console.log("calculated order qty: " + Number(config.settings.purchaseAmount) - Number(ordering.stageOneFilled));
+				console.log("calculated order qty: " + (Number(config.settings.purchaseAmount) - Number(ordering.stageOneFilled)));
 
 				binance.buy(config.settings.coinPair, Number(config.settings.purchaseAmount) - Number(ordering.stageOneFilled), ordering.targetBidPrice, {}, function(response) {
 					//console.log(response);
@@ -581,6 +585,7 @@ module.exports = function() {
 		clock: clock,
 		accountBalances: accountBalances,
 		cycleStats: cycleStats,
+		sessionStats: sessionStats,
 		accountStats: accountStats,
 	}
 }();
