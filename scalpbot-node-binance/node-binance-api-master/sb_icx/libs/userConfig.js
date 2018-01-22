@@ -9,8 +9,8 @@ module.exports = function() {
 	const binance = require('../../node-binance-api.js');
 
 	binance.options({
-	  'APIKEY':'dgqWJDR09pomiXfMN44vRvAspKY6LPplIlqwfmVc3aEl1Np4TuMURdxFU3cqdH41',
-	  'APISECRET':'vdN54L3FxkxVdTa11xRjYBOs0QGiKbRk4NogRZYcl3sKWcsdVUVcPhuMZYEJbMkk'
+	  'APIKEY':'',
+	  'APISECRET':''
 	});
 
 	var settings = {
@@ -23,7 +23,7 @@ module.exports = function() {
 
 		approxParentCoinValue: 1050,				// approximate value of the coin being traded against (i.e. ETH or BTC)
 
-		purchaseAmount: 10,									// amount of coins to purchase/sell when market entry conditions are met
+		purchaseAmount: 20,									// amount of coins to purchase/sell when market entry conditions are met
 		tradeHistorySize: 500,							// max amount of trade history entries to store in our log
 
 		profitLossLimit: 0.2,								// maximum amount of value which can be lost before the bot will halt (this needs to be a positive number)

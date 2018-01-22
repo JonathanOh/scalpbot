@@ -70,8 +70,6 @@ module.exports = function() {
 	}
 
 	var cycleStats = {
-		startingValue: NaN,
-		endingValue: NaN,
 		netValue: 0,
 	}
 

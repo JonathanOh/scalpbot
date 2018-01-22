@@ -79,10 +79,11 @@ sb.clock.startTime = Date.now();
 sb.sessionStats.totalTrades = 0;
 sb.sessionStats.netValue = 0;
 
+// initialize cycle stats
+sb.cycleStats.netValue = 0;
+
 // update account accountBalances
 sb.updateAccountBalances(function() {
-  sb.accountStats.startingValue = sb.accountBalances[config.settings.purchasingCurrency];
-  sb.cycleStats.startingValue = sb.accountBalances[config.settings.purchasingCurrency];
   stateProcessing = false;
 });
 
@@ -268,8 +269,6 @@ sb.updateAccountBalances(function() {
 				sb.ordering.stageOneFilled = 0;
 				sb.ordering.stageTwoFilled = 0;
 
-        sb.cycleStats.startingValue = sb.accountBalances[config.settings.purchasingCurrency];
-
         state = states.placeLimitOrderStage1; // continue
         stateProcessing = false;
 
@@ -330,6 +329,10 @@ sb.updateAccountBalances(function() {
 					if (sb.ordering.order.status == 'FILLED') {
             // update stage 1 fill total
             sb.ordering.stageOneFilled += Number(sb.ordering.order.executedQty);
+
+            // update our net transaction value for this cycle
+            sb.cycleStats.netValue -= (sb.ordering.order.executedQty * sb.ordering.order.price);
+            console.log("cycleStats.netValue: " + sb.cycleStats.netValue);
 
 						// save our sell order so we can grab pricing data from it later
 						sb.ordering.savedOrder = sb.ordering.order;
@@ -407,6 +410,10 @@ sb.updateAccountBalances(function() {
 
 							process.stdout.write(color.FgBrightGreen + "SUCCESS\r\n" + color.Reset);
 
+              // update our net transaction value for this cycle
+              sb.cycleStats.netValue -= (sb.ordering.canceledOrder.executedQty * sb.ordering.canceledOrder.price);
+              console.log("cycleStats.netValue: " + sb.cycleStats.netValue);
+
 							// check fill quantity to see if minimum requirements are met
 							if (sb.ordering.stageOneFilled >= config.settings.stageOneMinimumFillAmount) {
 								// save our order so we can grab pricing data from it later
@@ -455,6 +462,10 @@ sb.updateAccountBalances(function() {
 							sb.ordering.stageOneFilled += Number(sb.ordering.canceledOrder.executedQty);
               console.log("ordering.stageOneFilled: " + sb.ordering.stageOneFilled);
 
+              // update our net transaction value for this cycle
+              sb.cycleStats.netValue -= (sb.ordering.canceledOrder.executedQty * sb.ordering.canceledOrder.price);
+              console.log("cycleStats.netValue: " + sb.cycleStats.netValue);
+
 							// check fill quantity to see if minimum requirements are met
 							if (sb.ordering.stageOneFilled >= config.settings.stageOneMinimumFillAmount) {
                 console.log("stageOneFilled >= stageOneMinimumFillAmount");
@@ -481,6 +492,17 @@ sb.updateAccountBalances(function() {
               // order was filled before cancellation could occur
     					if (ordering.order.status == 'FILLED') {
                 console.log("    > Order was filled prior to cancellation, proceding to Stage 2...");
+
+                // update stage 1 fill total
+                sb.ordering.stageOneFilled += Number(sb.ordering.order.executedQty);
+
+                // update our net transaction value for this cycle
+                sb.cycleStats.netValue -= (sb.ordering.order.executedQty * sb.ordering.order.price);
+                console.log("cycleStats.netValue: " + sb.cycleStats.netValue);
+
+    						// save our sell order so we can grab pricing data from it later
+    						sb.ordering.savedOrder = sb.ordering.order;
+
                 state = states.placeLimitOrderStage2; // continue to Stage 2
               } else {
                 // stop bot upon failure here (for debugging)
@@ -569,6 +591,13 @@ sb.updateAccountBalances(function() {
 						console.log("   --- ");
 						console.log("    > Cycle complete");
 
+            // update stage 1 fill total
+            sb.ordering.stageTwoFilled += Number(sb.ordering.order.executedQty);
+
+            // update our net transaction value for this cycle
+            sb.cycleStats.netValue += (sb.ordering.order.executedQty * sb.ordering.order.price);
+            console.log("cycleStats.netValue: " + sb.cycleStats.netValue);
+
 						// increment trade count for this session
             sb.sessionStats.totalTrades += 1;
 
@@ -632,6 +661,10 @@ sb.updateAccountBalances(function() {
               console.log("ordering.canceledOrder" + sb.ordering.canceledOrder);
               console.log("stageTwoFilled: " + sb.ordering.stageTwoFilled);
 
+              // update our net transaction value for this cycle
+              sb.cycleStats.netValue += (sb.ordering.canceledOrder.executedQty * sb.ordering.canceledOrder.price);
+              console.log("cycleStats.netValue: " + sb.cycleStats.netValue);
+
               // check to see if we've filled or partially filled any leftover quantity
               if (sb.ordering.stageTwoFilled > config.settings.purchaseAmount) {
                 // re-calculate our leftover quantity
@@ -678,10 +711,15 @@ sb.updateAccountBalances(function() {
 					if (response) {
 						if (sb.ordering.canceledOrder.status == 'CANCELED') {
 							process.stdout.write(color.FgBrightGreen + "SUCCESS\r\n" + color.Reset);
+              console.log(response);
 
               // update fill quantity
 							sb.ordering.stageTwoFilled += Number(sb.ordering.canceledOrder.executedQty);
               console.log("stageTwoFilled: " + sb.ordering.stageTwoFilled);
+
+              // update our net transaction value for this cycle
+              sb.cycleStats.netValue += (sb.ordering.canceledOrder.executedQty * sb.ordering.canceledOrder.price);
+              console.log("cycleStats.netValue: " + sb.cycleStats.netValue);
 
               // check to see if we've filled or partially filled any leftover quantity
               if (sb.ordering.stageTwoFilled > config.settings.purchaseAmount) {
@@ -747,17 +785,17 @@ sb.updateAccountBalances(function() {
         sb.clock.processingDelay = 100;
 
         sb.updateAccountBalances(function() {
-          // update account stats
-					sb.accountStats.netValue = Number(sb.accountBalances[config.settings.purchasingCurrency] - sb.accountStats.startingValue);
-					sb.cycleStats.netValue = (sb.accountBalances[config.settings.purchasingCurrency] - sb.cycleStats.startingValue);
-
           // update session stats
           sb.sessionStats.netValue += Number(sb.cycleStats.netValue);
 
+          // reset cycle stats
+          sb.cycleStats.netValue = 0;
+
 					// hard-stop if loss limit exceeded
-					if (sb.accountStats.netValue <= Number(-1 * config.settings.profitLossLimit)) {
-						console.log("Loss limit reached, halting bot...");
-						state = states.criticalError;
+					if (sb.sessionStats.netValue <= Number(-1 * config.settings.profitLossLimit)) {
+						//console.log("Loss limit reached, halting bot...");
+						//state = states.criticalError;
+            state = states.printStatistics; // restart
 					} else {
 						state = states.printStatistics; // restart
 					}
