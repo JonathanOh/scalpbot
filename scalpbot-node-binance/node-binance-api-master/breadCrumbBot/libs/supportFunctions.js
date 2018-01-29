@@ -7,8 +7,8 @@
 module.exports = function() {
 	'use strict';
 	const async = require('async');
-	const config = require('../../dipBot/libs/userConfig.js');
-	const color = require('../../dipBot/libs/terminalColors.js');
+	const config = require('../../BreadCrumbBot/libs/userConfig.js');
+	const color = require('../../BreadCrumbBot/libs/terminalColors.js');
 	const binance = config.binance;
 
 	// auto-updated websocket variables
