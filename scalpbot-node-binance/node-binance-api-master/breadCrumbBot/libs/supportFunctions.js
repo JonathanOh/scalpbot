@@ -40,7 +40,7 @@ module.exports = function() {
 		_m: 0,
 		_s: 0,
 		estimatedDailyProfit: 0,
-		processingDelay: 100,
+		processingDelay: 300,
 	}
 
 	var accountBalances = {
@@ -59,6 +59,10 @@ module.exports = function() {
 		startingValue: NaN,
 		endingValue: NaN,
 		netValue: 0,
+	}
+
+	var api = {
+		depthUpdated: false,
 	}
 
 	// AUTO-UPDATED AFTER WEBSOCKET PUSH
@@ -152,6 +156,9 @@ module.exports = function() {
 
 			// update the first position order book prices on both ASK and BID side
 			getFirstPositionPrices();
+
+			// update flag
+			api.depthUpdated = true;
 		});
 
 		if (callback) return callback();
@@ -280,16 +287,16 @@ module.exports = function() {
 			// otherwise, add to back
 
 			// check to see if there is room to insert an order in the 'front'
-			if ((lowestDeltaFound) > (satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(config.settings.tierDistance) + satoshiToDecimal(10))) {
+			if ((lowestDeltaFound) > (satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(config.settings.tierDistance) + satoshiToDecimal(config.settings.safetyMargin))) {
 				if (lowestDeltaOrder)
 					targetListPrice = Number(lowestDeltaOrder.price) - satoshiToDecimal(config.settings.tierDistance);
 				else
-					targetListPrice = Number(ordering.firstPositionAskPrice) + satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(10);
+					targetListPrice = Number(ordering.firstPositionAskPrice) + satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(config.settings.safetyMargin);
 
 				console.log("placing limit order at front: ", targetListPrice.toFixed(config.settings.coinDecimalCount));
 
 				// insert an order at the 'front'
-				placeLimitOrder('ASK', config.settings.coinsPerTier, Number(targetListPrice).toFixed(config.settings.coinDecimalCount), function(response) {
+				placeLimitOrder('ASK', config.settings.coinsPerTierAsk, Number(targetListPrice).toFixed(config.settings.coinDecimalCount), function(response) {
 					if (response.orderId) {
 						// add the newly listed order to our active orders array
 						ordering.activeOrders.push(response);
@@ -311,12 +318,12 @@ module.exports = function() {
 				if (highestDeltaOrder)
 					targetListPrice = Number(highestDeltaOrder.price) + satoshiToDecimal(config.settings.tierDistance);
 				else
-					targetListPrice = Number(ordering.firstPositionAskPrice) + satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(10);
+					targetListPrice = Number(ordering.firstPositionAskPrice) + satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(config.settings.safetyMargin);
 
 				console.log("placing limit order at end: ", targetListPrice.toFixed(config.settings.coinDecimalCount));
 
 				// insert an order at the 'front'
-				placeLimitOrder('ASK', config.settings.coinsPerTier, Number(targetListPrice).toFixed(config.settings.coinDecimalCount), function(response) {
+				placeLimitOrder('ASK', config.settings.coinsPerTierAsk, Number(targetListPrice).toFixed(config.settings.coinDecimalCount), function(response) {
 					if (response.orderId) {
 						// add the newly listed order to our active orders array
 						ordering.activeOrders.push(response);
@@ -377,23 +384,23 @@ module.exports = function() {
 				}
 			});
 
-			console.log("---");
-			console.log("lowestDeltaFound : ", lowestDeltaFound);
-			console.log("highestDeltaFound: ", highestDeltaFound);
-			console.log("---");
-			console.log("if lowestDeltaFound > ", (Number(config.settings.minimumDistance) + Number(config.settings.tierDistance) + Number(10)));
+			//console.log("---");
+			//console.log("lowestDeltaFound : ", lowestDeltaFound);
+			//console.log("highestDeltaFound: ", highestDeltaFound);
+			//console.log("---");
+			//console.log("lowestDeltaFound > ", (Number(config.settings.minimumDistance) + Number(config.settings.tierDistance) + Number(config.settings.safetyMargin)));
 
 			// check to see if there is room to insert an order in the 'front'
-			if ((lowestDeltaFound) > (satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(config.settings.tierDistance) + satoshiToDecimal(10))) {
+			if ((lowestDeltaFound) > (satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(config.settings.tierDistance) + satoshiToDecimal(config.settings.safetyMargin))) {
 				if (lowestDeltaOrder)
 					targetListPrice = Number(lowestDeltaOrder.price) + satoshiToDecimal(config.settings.tierDistance);
 				else
-					targetListPrice = Number(ordering.firstPositionBidPrice) - satoshiToDecimal(config.settings.minimumDistance) - satoshiToDecimal(10);
+					targetListPrice = Number(ordering.firstPositionBidPrice) - satoshiToDecimal(config.settings.minimumDistance) - satoshiToDecimal(config.settings.safetyMargin);
 
 				console.log("placing limit order at front: ", targetListPrice.toFixed(config.settings.coinDecimalCount));
 
 				// insert an order at the 'front'
-				placeLimitOrder('BID', config.settings.coinsPerTier, Number(targetListPrice).toFixed(config.settings.coinDecimalCount), function(response) {
+				placeLimitOrder('BID', config.settings.coinsPerTierBid, Number(targetListPrice).toFixed(config.settings.coinDecimalCount), function(response) {
 					if (response.orderId) {
 						// add the newly listed order to our active orders array
 						ordering.activeOrders.push(response);
@@ -415,12 +422,12 @@ module.exports = function() {
 				if (highestDeltaOrder)
 					targetListPrice = Number(highestDeltaOrder.price) - satoshiToDecimal(config.settings.tierDistance);
 				else
-					targetListPrice = Number(ordering.firstPositionBidPrice) - satoshiToDecimal(config.settings.minimumDistance) - satoshiToDecimal(10);
+					targetListPrice = Number(ordering.firstPositionBidPrice) - satoshiToDecimal(config.settings.minimumDistance) - satoshiToDecimal(config.settings.safetyMargin);
 
 				console.log("placing limit order at end: ", targetListPrice.toFixed(config.settings.coinDecimalCount));
 
 				// insert an order at the 'front'
-				placeLimitOrder('BID', config.settings.coinsPerTier, Number(targetListPrice).toFixed(config.settings.coinDecimalCount), function(response) {
+				placeLimitOrder('BID', config.settings.coinsPerTierBid, Number(targetListPrice).toFixed(config.settings.coinDecimalCount), function(response) {
 					if (response.orderId) {
 						// add the newly listed order to our active orders array
 						ordering.activeOrders.push(response);
@@ -446,40 +453,51 @@ module.exports = function() {
 	}
 
 	const getMarketDepthQuantity = function(side, range, callback) {
-		var totalQuantity
-		var thresholdValue;
+		var totalQuantity = 0;
+		var thresholdValue = 0;
 
 		// calculate the range threshold value
-		if (side == 'ASK') {
+		if (side == 'SELL') {
 			thresholdValue = Number(Object.keys(asks)[0]) + Number(config.settings.responseSpreadRequired / config.satoshiMultiplier);
 		} else { // BID
 			thresholdValue = Number(Object.keys(bids)[0]) - Number(config.settings.responseSpreadRequired / config.satoshiMultiplier);
 		}
 
-		// get the total buy/sell depth (quantity) within a specific range from first position
-		for(x = 0; x < config.settings.responseSpreadRequired; x++) {
-			if (side == 'ASK') {
-				// check if the current order is within the specified range
-				if (Object.keys(asks)[x] <= thresholdValue) {
-					// add order quantity to total quantity
-					totalQuantiy += asks[Object.keys(asks)[x]];
+		if (side == 'SELL') {
+			// get ASK depth within user-defined protection scope
+			for (var x = 0; x <= Object.keys(asks).length; x++) {
+				//console.log(x + ", " + value + ", " + quantity);
+
+				var value = Object.keys(asks)[x];
+				var quantity = asks[value];
+
+				if(value <= thresholdValue) {
+					totalQuantity += Number(quantity);
 				} else {
-					// range threshold exceeded, stop scanning
+					// outside of our threshold scope, stop iterating
 					break;
 				}
 			}
+		} else { // BUY
+			console.log(Object.keys(bids).length);
 
-			if (side == 'BID') {
-				// check if the current order is within the specified range
-				if (Object.keys(bids)[x] >= thresholdValue) {
-					// add order quantity to total quantity
-					totalQuantiy += bids[Object.keys(bids)[x]];
+			// get BID depth within user-defined protection scope
+			for (var x = 0; x <= Object.keys(bids).length; x++) {
+				//console.log(x + ", " + value + ", " + quantity);
+
+				var value = Object.keys(bids)[x];
+				var quantity = bids[value];
+
+				if(value >= thresholdValue) {
+					totalQuantity += Number(quantity);
 				} else {
-					// range threshold exceeded, stop scanning
+					// outside of our threshold scope, stop iterating
 					break;
 				}
 			}
 		}
+
+		//console.log("total depth quantity for " + side + ": " + totalQuantity)
 
 		if (callback) return callback(totalQuantity);
 	}
@@ -620,7 +638,7 @@ module.exports = function() {
 			var highestBidDeltaOrder = NaN;
 
 			var deltaFromFirstPosition = NaN;
-			var maxDeltaFromFirstPosition = satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(config.settings.tierDistance) + satoshiToDecimal(10);
+			var maxDeltaFromFirstPosition = satoshiToDecimal(config.settings.minimumDistance) + satoshiToDecimal(config.settings.tierDistance) + satoshiToDecimal(config.settings.safetyMargin);
 			var minDeltaFromFirstPosition = satoshiToDecimal(config.settings.minimumDistance);
 
 			// reset variables
@@ -772,6 +790,9 @@ module.exports = function() {
 			var maxElapsedMilliseconds = (maxElapsedSeconds * 1000);
 			var elapsedMilliseconds = (Date.now() - startTime);
 
+			console.log("elapsedMilliseconds: ", elapsedMilliseconds);
+			console.log("maxElapsedMilliseconds: ", maxElapsedMilliseconds);
+
 			// check for a timeout condition
 			if (elapsedMilliseconds >= maxElapsedMilliseconds)
 				return true; // timeout occurred
@@ -779,7 +800,9 @@ module.exports = function() {
 				return false; // no timeout
 		},
 
-		checkMarketDepthQuantity: function checkMarketDepthQuantity(side, range, callback) {
+		checkMarketDepthQuantity: function checkMarketDepthQuantity(side, range) {
+			console.log("side ", side);
+			console.log("range ", range);
 			getMarketDepthQuantity(side, range, function(response) {
 				return response;
 			});
@@ -793,13 +816,15 @@ module.exports = function() {
 
 			orders.forEach(order => {
 				if (order.side == 'BUY') {
-					response.bidTotal += order.executedQty;
+					response.bidTotal += Number(order.executedQty);
 				}
 
 				if (order.side == 'SELL') {
-					response.askTotal += order.executedQty;
+					response.askTotal += Number(order.executedQty);
 				}
 			});
+
+			return response;
 		},
 
 		removeActiveOrders: function remoteActiveOrders(side) {
@@ -856,6 +881,7 @@ module.exports = function() {
 		ordering: ordering,
 		depth: depth,
 		clock: clock,
+		api: api,
 		accountBalances: accountBalances,
 		sessionStats: sessionStats,
 		accountStats: accountStats,
