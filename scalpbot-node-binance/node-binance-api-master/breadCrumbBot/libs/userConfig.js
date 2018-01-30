@@ -6,11 +6,12 @@
 
 module.exports = function() {
 	'use strict';
+	require('dotenv').config();
 	const binance = require('../../node-binance-api.js');
 
 	binance.options({
-	  'APIKEY':'',
-	  'APISECRET':''
+	  'APIKEY': process.env.BINANCE_APIKEY,
+	  'APISECRET': process.env.BINANCE_APISECRET,
 	});
 
 	var profileName = 'ICX'; 								// profile to use
@@ -32,7 +33,7 @@ module.exports = function() {
 			askTierCount: 4,										// total number of orders/tiers to maintain on the ASK side of the order book in which to create orders
 			bidTierCount: 4,										// total number of orders/tiers to maintain on the BID side of the order book in which to create orders
 
-			coinsPerTierAsk: 10,								// number of coins to list per ASK tier
+			coinsPerTierAsk: 30,								// number of coins to list per ASK tier
 			coinsPerTierBid: 10,								// number of coins to list per BID tier
 
 			minimumResponseDelay: 5,						// minimum time (in seconds) to wait before re-purchsaing or re-selling coins after a buyout

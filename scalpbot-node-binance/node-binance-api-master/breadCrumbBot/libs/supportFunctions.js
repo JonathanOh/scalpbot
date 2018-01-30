@@ -577,7 +577,6 @@ module.exports = function() {
 
 		performMarketOrder: function performMarketOrder(type, quantity, callback) {
 			placeMarketOrder(type, quantity, function(response) {
-				console.log(response); // debugging
 				if (callback) return callback(response);
 			});
 		},
@@ -624,10 +623,12 @@ module.exports = function() {
 			}
 		},
 
-		updateCancellationQueue: function updateCancellationQueue() {
+		updateCancellationQueue: function updateCancellationQueue(callback) {
 			// declarations
 			var activeAskOrders = [];
 			var activeBidOrders = [];
+
+			var idx = NaN;
 
 			var lowestAskDeltaFound = 999999;
 			var lowestAskDeltaOrder = NaN;
@@ -654,8 +655,9 @@ module.exports = function() {
 
 			// populate ASK orders array
 			ordering.activeOrders.forEach(order => {
-				if (order.side == 'SELL')
+				if (order.side == 'SELL') {
 					activeAskOrders.push(order);
+				}
 			});
 
 			//console.log("ask orders: ", activeAskOrders);
@@ -663,17 +665,21 @@ module.exports = function() {
 			//console.log("---");
 
 			// queue orders below the minimum threshold for cancellation
-			activeAskOrders.forEach(order => {
+			activeAskOrders.forEach((order, index) => {
 				deltaFromFirstPosition = (order.price - ordering.firstPositionAskPrice);
 
 				if (deltaFromFirstPosition < Number(minDeltaFromFirstPosition).toFixed(config.settings.coinDecimalCount)) {
 					// queue for cancellation
 					ordering.cancelQueue.push(order);
+					console.log("cancelQueue push1: ", order.orderId);
+
+					// remove from the active bid list so we don't double-push
+					activeAskOrders.splice(index, 1);
 				}
 			});
 
 			// get the lowest and highest delta active orders from market first-postiion of the active ASK orders
-			activeAskOrders.forEach(order => {
+			activeAskOrders.forEach((order, index) => {
 				deltaFromFirstPosition = (order.price - ordering.firstPositionAskPrice);
 				//console.log(order.orderId + " delta from first position: " + deltaFromFirstPosition);
 
@@ -704,6 +710,13 @@ module.exports = function() {
 					// cancel the lowest delta order so that it can be placed at the end
 					if (lowestAskDeltaOrder)
 						ordering.cancelQueue.push(lowestAskDeltaOrder);
+						console.log("cancelQueue push2: ", lowestAskDeltaOrder.orderId);
+
+						// remove from the active bid list so we don't double-push
+						idx = activeAskOrders.indexOf(lowestAskDeltaOrder);
+
+						if (idx)
+							activeAskOrders.splice(idx, 1);
 				}
 
 				// [CHECK] to see if lowest delta ASK over the maximum threshold
@@ -711,6 +724,13 @@ module.exports = function() {
 					// cancel the highest delta order so that it can be placed at the front
 					if (highestAskDeltaOrder)
 						ordering.cancelQueue.push(highestAskDeltaOrder);
+						console.log("cancelQueue push3: ", highestAskDeltaOrder.orderId);
+
+						// remove from the active bid list so we don't double-push
+						idx = activeAskOrders.indexOf(highestAskDeltaOrder);
+
+						if (idx)
+							activeAskOrders.splice(idx, 1);
 				}
 			}
 
@@ -731,17 +751,21 @@ module.exports = function() {
 			//console.log("---");
 
 			// queue orders below the minimum threshold for cancellation
-			activeBidOrders.forEach(order => {
+			activeBidOrders.forEach((order, index) => {
 				deltaFromFirstPosition = (ordering.firstPositionBidPrice - order.price);
 
 				if (deltaFromFirstPosition < Number(minDeltaFromFirstPosition).toFixed(config.settings.coinDecimalCount)) {
 					// queue for cancellation
 					ordering.cancelQueue.push(order);
+					console.log("cancelQueue push4: ", order.orderId);
+
+					// remove from the active bid list so we don't double-push
+					activeBidOrders.splice(index, 1);
 				}
 			});
 
 			// get the lowest and highest delta active orders from market first-postiion of the active BID orders
-			activeBidOrders.forEach(order => {
+			activeBidOrders.forEach((order, index) => {
 				deltaFromFirstPosition = (ordering.firstPositionBidPrice - order.price);
 				//console.log(order.orderId + " delta from first position: " + deltaFromFirstPosition);
 
@@ -772,6 +796,13 @@ module.exports = function() {
 					// cancel the lowest delta order so that it can be placed at the end
 					if (lowestBidDeltaOrder)
 						ordering.cancelQueue.push(lowestBidDeltaOrder);
+						console.log("cancelQueue push5: ", lowestBidDeltaOrder.orderId);
+
+						// remove from the active bid list so we don't double-push
+						idx = activeBidOrders.indexOf(lowestBidDeltaOrder);
+
+						if (idx)
+							activeBidOrders.splice(idx, 1);
 				}
 
 				// [CHECK] to see if lowest delta BID over the maximum threshold
@@ -779,8 +810,17 @@ module.exports = function() {
 					// cancel the highest delta order so that it can be placed at the front
 					if (highestBidDeltaOrder)
 						ordering.cancelQueue.push(highestBidDeltaOrder);
+						console.log("cancelQueue push6: ", highestBidDeltaOrder.orderId);
+
+						// remove from the active bid list so we don't double-push
+						idx = activeBidOrders.indexOf(highestBidDeltaOrder);
+
+						if (idx)
+							activeBidOrders.splice(idx, 1);
 				}
 			}
+
+			if (callback) return callback();
 		},
 
 		tallyOpenOrders: function tallyOpenOrders(order) {
@@ -835,10 +875,13 @@ module.exports = function() {
 		},
 
 		removeActiveOrders: function remoteActiveOrders(side) {
-			ordering.activeOrders.forEach(function(order, index, object) {
-				if (order.side == side)
+			ordering.activeOrders.forEach(function(order, index) {
+				if (order.side == side) {
+					console.log("splicing order: ", order);
 					// remove matching order type from the array
-					object.splice(index, 1);
+					ordering.activeOrders.splice(index, 1);
+					console.log("after: ", ordering.activeOrders);
+				}
 			});
 		},
 

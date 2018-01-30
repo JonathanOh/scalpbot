@@ -4,9 +4,11 @@
 //
 ///////////////////////////////////////////
 
+require('dotenv').config();
 const config = require('../BreadCrumbBot/libs/userConfig.js');
 const color = require('../BreadCrumbBot/libs/terminalColors.js');
 const sb = require('../BreadCrumbBot/libs/supportFunctions.js');
+const twilio = require('twilio');
 const binance = config.binance;
 
 ///////////////////////////////////////////
@@ -14,6 +16,8 @@ const binance = config.binance;
 //   MAIN ENTRY POINT
 //
 ///////////////////////////////////////////
+
+var smsClient = new twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 var state;
 var states = {
@@ -60,6 +64,15 @@ const updateHeartbeat = function(callback) {
 }
 
 console.log("\r\nStarting: BreadCrumbBot for Binance... \r\n\n");
+
+/*
+// send an SMS
+smsClient.messages.create({
+  to: '+17725328689',
+  from: '+17725772728',
+  body: 'test from twilio!'
+});
+*/
 
 // define our startup time
 sb.clock.startTime = Date.now();
@@ -190,9 +203,6 @@ sb.updateAccountBalances(function() {
               //}
             });
 
-            // [ANALYZE] active orders to see if any require CANCELLATION
-            sb.updateCancellationQueue();
-
             // [CHECK] to see if we need to process any filled orders immediately
             if (filledOrderCount > 0) {
               console.log(color.FgBrightWhite);
@@ -200,15 +210,18 @@ sb.updateAccountBalances(function() {
 
               state = states.cancelAllOrdersPreFill;
             } else {
-              // [CHECK] to see if we need to cancel any orders
-              if (sb.ordering.cancelQueue.length > 0) {
-                state = states.processCancelOrders;
-              } else {
-                // [CHECK] to see if we are maintaining the minimum required order count
-                if (sb.ordering.activeOrders.length < (Number(config.settings.askTierCount) + Number(config.settings.bidTierCount))) {
-                  state = states.tallyOrders;
+              // [ANALYZE] active orders to see if any require CANCELLATION
+              sb.updateCancellationQueue(function() {
+                // [CHECK] to see if we need to cancel any orders
+                if (sb.ordering.cancelQueue.length > 0) {
+                  state = states.processCancelOrders;
+                } else {
+                  // [CHECK] to see if we are maintaining the minimum required order count
+                  if (sb.ordering.activeOrders.length < (Number(config.settings.askTierCount) + Number(config.settings.bidTierCount))) {
+                    state = states.tallyOrders;
+                  }
                 }
-              }
+              });
             }
 
             //if (state == states.monitorOrders)
@@ -281,7 +294,7 @@ sb.updateAccountBalances(function() {
                     console.log("market order successful, removing active BUY orders")
                     // market order successful, remove all BID orders from our active orders array following a re-sale
                     sb.removeActiveOrders('BUY', sb.ordering.activeOrders);
-                    console.log("activeOrders: ", sb.ordering.activeOrders);
+                    console.log("final activeOrders: ", sb.ordering.activeOrders);
 
                     stateProcessing = false;
                   }
@@ -310,8 +323,8 @@ sb.updateAccountBalances(function() {
                       console.log(response);
                       console.log("market order successful, removing active SELL orders")
                       // market order successful, remove all ASK orders from our active orders array following a re-sale
-                      removeActiveOrders('SELL', sb.ordering.activeOrders);
-                      console.log("activeOrders: ", sb.ordering.activeOrders);
+                      sb.removeActiveOrders('SELL', sb.ordering.activeOrders);
+                      console.log("final activeOrders: ", sb.ordering.activeOrders);
 
                       stateProcessing = false; // continue
                     }
@@ -337,7 +350,7 @@ sb.updateAccountBalances(function() {
                   console.log("market order successful, removing active BUY orders")
                   // market order successful, remove all BID orders from our active orders array following a re-sale
                   sb.removeActiveOrders('BUY', sb.ordering.activeOrders);
-                  console.log("activeOrders: ", sb.ordering.activeOrders);
+                  console.log("final activeOrders: ", sb.ordering.activeOrders);
 
                   stateProcessing = false; // continue
                 }
@@ -352,7 +365,7 @@ sb.updateAccountBalances(function() {
                     console.log("market order successful, removing active SELL orders")
                     // market order successful, remove all ASK orders from our active orders array following a re-sale
                     sb.removeActiveOrders('SELL', sb.ordering.activeOrders);
-                    console.log("activeOrders: ", sb.ordering.activeOrders);
+                    console.log("final activeOrders: ", sb.ordering.activeOrders);
 
                     stateProcessing = false; // continue
                   }
@@ -388,7 +401,7 @@ sb.updateAccountBalances(function() {
                 sb.ordering.activeOrders.splice(index, 1);
 
                 console.log("removed canceled order from active orders list: ", canceledOrder.orderId);
-                //console.log(sb.ordering.activeOrders);
+                console.log("activeOrders: ", sb.ordering.activeOrders);
               }
             });
           });
