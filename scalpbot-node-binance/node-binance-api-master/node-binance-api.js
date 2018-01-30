@@ -83,7 +83,7 @@ module.exports = function() {
 
 		request(opt, function(error, response, body) {
 			if ( !response || !body ) {
-				throw "signedRequest error: "+error;
+				//throw "signedRequest error: "+error;
 			}
 			if ( callback ) callback(JSON.parse(body));
 		});

@@ -86,10 +86,13 @@ sb.updateAccountBalances(function() {
         // check for open orders
 				sb.checkForOpenOrders(function(response) {
 					if (response == true) {
-						errorMsg = "Open orders found, cancel all " + config.settings.coinPair + " orders first!";
+            console.log("    > Open orders found, cancelling... ");
 
-						state = states.criticalError; // report error and halt
-            stateProcessing = false;
+            sb.cancelAllOpenOrders(function() {
+              stateProcessing = false;
+            })
+						//errorMsg = "Open orders found, cancel all " + config.settings.coinPair + " orders first!";
+						//state = states.criticalError; // report error and halt
 					} else {
             console.log("    > Variable initialization... ");
 
@@ -165,6 +168,9 @@ sb.updateAccountBalances(function() {
           console.log(color.FgBrightWhite);
           console.log("    > Monitoring active orders" + heartbeatString + color.Reset);
 
+          // update heartbeat (GUI)
+          updateHeartbeat();
+
           // update active orders
           sb.updateOrderStatusMultiple(sb.ordering.activeOrders, function(response) {
             sb.ordering.activeOrders = response;
@@ -179,9 +185,9 @@ sb.updateAccountBalances(function() {
                 filledOrderCount += 1;
 
               // check to see if any of our orders have been manually/abruptly canceled
-              if (order.status == 'CANCELED') {
-                sb.ordering.activeOrders.splice(index, 1);
-              }
+              //if (order.status == 'CANCELED') {
+                //sb.ordering.activeOrders.splice(index, 1);
+              //}
             });
 
             // [ANALYZE] active orders to see if any require CANCELLATION
@@ -204,9 +210,6 @@ sb.updateAccountBalances(function() {
                 }
               }
             }
-
-            // update heartbeat (GUI)
-  					//updateHeartbeat();
 
             //if (state == states.monitorOrders)
     					//process.stdout.write('\033[u'); // restore cursor position
@@ -245,8 +248,8 @@ sb.updateAccountBalances(function() {
         console.log(color.FgBrightWhite);
         console.log("    > Processing filled orders... " + color.Reset);
 
-        var fillQuantity = NaN;;
-        var response = NaN;
+        var fillQuantity = NaN;
+        var depthQuantity = 0;
 
         // get total executed quantity from all filled orders
         fillQuantity = sb.calculateFilledQuantities(sb.ordering.activeOrders);
@@ -263,11 +266,13 @@ sb.updateAccountBalances(function() {
               // [CHECK] to see if the market depth quantity within our specified range meets the minimum response requirements
               console.log("fillQuantity.bidTotal > 0...");
 
-              response = sb.checkMarketDepthQuantity('BUY', config.settings.responseSpreadRequired);
-              console.log("response: ", response);
+              sb.checkMarketDepthQuantity('BUY', config.settings.responseSpreadRequired, function(response) {
+                console.log("response1: ", response);
+                depthQuantity = response;
+              });
 
               // if the available depth is equal to or greater than our fill quantity, perform a market order
-              if (response >= fillQuantity.bidTotal) {
+              if (depthQuantity >= fillQuantity.bidTotal) {
                 console.log("response > fillQuantity.bidTotal...");
                 console.log("placing market SELL order for qty: ", fillQuantity.bidTotal);
                 sb.performMarketOrder('SELL', fillQuantity.bidTotal, function(response) {
@@ -275,25 +280,29 @@ sb.updateAccountBalances(function() {
                     console.log(response);
                     console.log("market order successful, removing active BUY orders")
                     // market order successful, remove all BID orders from our active orders array following a re-sale
-                    sb.removeActiveOrders('BUY');
+                    sb.removeActiveOrders('BUY', sb.ordering.activeOrders);
                     console.log("activeOrders: ", sb.ordering.activeOrders);
-                  }
 
-                  stateProcessing = false; // continue
+                    stateProcessing = false;
+                  }
                 });
+              } else {
+                stateProcessing = false; // continue
               }
-            } else {
+            } else if (fillQuantity.askTotal > 0) {
               console.log("maximum response time EXPIRED, emergency market ordering...");
               // Attempt to perform a market order to re-purchase any previously filled ASK orders
               if (fillQuantity.askTotal > 0) {
                 console.log("fillQuantity.askTotal > 0... : ", fillQuantity.askTotal);
 
                 // [CHECK] to see if the market depth quantity within our specified range meets the minimum response requirements
-                response = sb.checkMarketDepthQuantity('SELL', config.settings.responseSpreadRequired)
-                console.log("response: ", response);
+                sb.checkMarketDepthQuantity('SELL', config.settings.responseSpreadRequired, function(response) {
+                  console.log("response2: ", response);
+                  depthQuantity = response;
+                });
 
                 // if the available depth is equal to or greater than our fill quantity, perform a market order
-                if (response >= fillQuantity.askTotal) {
+                if (depthQuantity >= fillQuantity.askTotal) {
                   console.log("response > fillQuantity.askTotal...");
                   console.log("placing market BUY order for qty: ", fillQuantity.askTotal);
                   sb.performMarketOrder('BUY', fillQuantity.askTotal, function(response) {
@@ -301,14 +310,20 @@ sb.updateAccountBalances(function() {
                       console.log(response);
                       console.log("market order successful, removing active SELL orders")
                       // market order successful, remove all ASK orders from our active orders array following a re-sale
-                      sb.removeActiveOrders('SELL');
+                      removeActiveOrders('SELL', sb.ordering.activeOrders);
                       console.log("activeOrders: ", sb.ordering.activeOrders);
-                    }
 
-                    stateProcessing = false; // continue
+                      stateProcessing = false; // continue
+                    }
                   });
+                } else {
+                  stateProcessing = false; // continue
                 }
               }
+            } else {
+              // no bid or ask quantity, finished
+              state = states.tallyOrders;
+              stateProcessing = false; // continue
             }
           } else {
             console.log("max time expired, perform immediate market order");
@@ -321,13 +336,13 @@ sb.updateAccountBalances(function() {
                   console.log(response);
                   console.log("market order successful, removing active BUY orders")
                   // market order successful, remove all BID orders from our active orders array following a re-sale
-                  sb.removeActiveOrders('BUY');
+                  sb.removeActiveOrders('BUY', sb.ordering.activeOrders);
                   console.log("activeOrders: ", sb.ordering.activeOrders);
-                }
 
-                stateProcessing = false; // continue
+                  stateProcessing = false; // continue
+                }
               });
-            } else {
+            } else if (fillQuantity.askTotal > 0) {
               if (fillQuantity.askTotal > 0) {
                 console.log("fillQuantity.askTotal > 0...");
                 console.log("placing market BUY order for qty: ", fillQuantity.askTotal);
@@ -335,23 +350,23 @@ sb.updateAccountBalances(function() {
                   if (response) {
                     console.log(response);
                     console.log("market order successful, removing active SELL orders")
-                    // market order successful, remove all BID orders from our active orders array following a re-sale
-                    sb.removeActiveOrders('SELL');
+                    // market order successful, remove all ASK orders from our active orders array following a re-sale
+                    sb.removeActiveOrders('SELL', sb.ordering.activeOrders);
                     console.log("activeOrders: ", sb.ordering.activeOrders);
-                  }
 
-                  stateProcessing = false; // continue
+                    stateProcessing = false; // continue
+                  }
                 });
               }
+            } else {
+              // no bid or ask quantity, finished
+              state = states.tallyOrders;
+              stateProcessing = false; // continue
             }
           }
         } else {
           stateProcessing = false; // continue
         }
-
-        if (sb.ordering.activeOrders.length == 0)
-          process.exit(); // debugging
-          //state = states.relistAskOrders;
 
         break;
       case states.processCancelOrders:

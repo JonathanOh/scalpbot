@@ -1,0 +1,512 @@
+
+Starting: BreadCrumbBot for Binance... 
+
+
+[1m[37m
+  > Initializing...[0m
+    > Verifying no open orders exist... 
+    > Variable initialization... 
+[1m[37m
+    > Populating market depth... [0m
+[1m[37m
+    > Starting market depth WebtSocket... [0m
+  -------------------------------------
+[1m[37m    SESSION STATS:[0m
+  -------------------------------------
+    > Run time                 : [1m[37m0d 0h 0m 0s[0m
+    > Coin pair                : [1m[37mICXETH[0m
+    > Total quantity filled    : [1m[37mn/a[0m
+    > Account starting balance : [1m[37m0.35227693[0m ETH
+    > Account current balance  : [1m[37m0.35227693[0m ETH
+   --- 
+    > Total profit             : [1m[37m0.00000000[0m ETH ( [1m[32m0.00[0m )
+    > Estimated profit/day     : [1m[37mn/a[0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Tallying active orders... [0m
+    > Total ASK orders: [1m[37m0[0m
+    > Total BID orders: [1m[37m0[0m
+[1m[37m
+    > Re-listing ASK orders... [0m
+firstPositionAskPrice:  0.007716
+placing limit order at front:  0.007761
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481593,
+  clientOrderId: 'e8l6q5l9hQCez7z5qfdoL6',
+  transactTime: 1517214151633,
+  price: '0.00776100',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+firstPositionAskPrice:  0.007716
+order id: 4481593, deltaFromFirstPosition: 0.0000449999999999999
+placing limit order at end:  0.007767
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481594,
+  clientOrderId: 'PCXiRKTE6Gvkf60SGIE1cI',
+  transactTime: 1517214152234,
+  price: '0.00776700',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+iteration done
+ASK orders relisted
+[1m[37m
+    > Re-listing BID orders... [0m
+firstPositionBidPrice:  0.007700
+placing limit order at front:  0.007655
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481596,
+  clientOrderId: 'XlRlkd2H6yujXALm2FJzYW',
+  transactTime: 1517214152833,
+  price: '0.00765500',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'BUY' }
+firstPositionBidPrice:  0.007700
+order id: 4481596, deltaFromFirstPosition: 0.0000449999999999999
+placing limit order at end:  0.007649
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481597,
+  clientOrderId: 'PBhdhj2WCDWBwiMyQZbUGV',
+  transactTime: 1517214153431,
+  price: '0.00764900',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'BUY' }
+iteration done
+BID orders relisted
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+  > Processing order cancellations...[0m
+    > Cancelling [1m[37m3[0m order(s)... cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'PCXiRKTE6Gvkf60SGIE1cI',
+  orderId: 4481594,
+  clientOrderId: 'fqsXadJbl0Rvu2mNBxJYhQ' }
+cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'XlRlkd2H6yujXALm2FJzYW',
+  orderId: 4481596,
+  clientOrderId: 'ybmrvwy2ZmH467xgriyPx4' }
+cancelOrder() response:  { code: -2011, msg: 'UNKNOWN_ORDER' }
+Done!
+removed canceled order from active orders list:  4481594
+removed canceled order from active orders list:  4481596
+[1m[37m
+    > Tallying active orders... [0m
+    > Total ASK orders: [1m[37m1[0m
+    > Total BID orders: [1m[37m1[0m
+[1m[37m
+    > Re-listing ASK orders... [0m
+firstPositionAskPrice:  0.007700
+order id: 4481593, deltaFromFirstPosition: 0.00006099999999999942
+placing limit order at front:  0.007755
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481614,
+  clientOrderId: 'EX65mTnzVm8dhE1KhDuApk',
+  transactTime: 1517214170270,
+  price: '0.00775500',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+iteration done
+ASK orders relisted
+[1m[37m
+    > Re-listing BID orders... [0m
+firstPositionBidPrice:  0.007687
+order id: 4481597, deltaFromFirstPosition: 0.00003799999999999984
+placing limit order at end:  0.007643
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481618,
+  clientOrderId: 'lolCqAO0g7uTWVCoBv2wgp',
+  transactTime: 1517214170866,
+  price: '0.00764300',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'BUY' }
+iteration done
+BID orders relisted
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+  > Processing order cancellations...[0m
+    > Cancelling [1m[37m3[0m order(s)... cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'PBhdhj2WCDWBwiMyQZbUGV',
+  orderId: 4481597,
+  clientOrderId: 'Z93U2igK1ttLmb3XI4Biv3' }
+cancelOrder() response:  { code: -2011, msg: 'UNKNOWN_ORDER' }
+cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'e8l6q5l9hQCez7z5qfdoL6',
+  orderId: 4481593,
+  clientOrderId: '2VZfBtIUyiyTO6qmVaDH6X' }
+Done!
+removed canceled order from active orders list:  4481593
+removed canceled order from active orders list:  4481597
+[1m[37m
+    > Tallying active orders... [0m
+    > Total ASK orders: [1m[37m1[0m
+    > Total BID orders: [1m[37m1[0m
+[1m[37m
+    > Re-listing ASK orders... [0m
+firstPositionAskPrice:  0.007700
+order id: 4481614, deltaFromFirstPosition: 0.000054999999999999494
+placing limit order at front:  0.007749
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481624,
+  clientOrderId: 'quV35gPT7oa1pwSud1CjHe',
+  transactTime: 1517214174172,
+  price: '0.00774900',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+iteration done
+ASK orders relisted
+[1m[37m
+    > Re-listing BID orders... [0m
+firstPositionBidPrice:  0.007688
+order id: 4481618, deltaFromFirstPosition: 0.00004500000000000077
+placing limit order at end:  0.007637
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481625,
+  clientOrderId: 'Epq4VYTcGNBIO2zuxxqPgq',
+  transactTime: 1517214174782,
+  price: '0.00763700',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'BUY' }
+iteration done
+BID orders relisted
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+  > Processing order cancellations...[0m
+    > Cancelling [1m[37m1[0m order(s)... cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'EX65mTnzVm8dhE1KhDuApk',
+  orderId: 4481614,
+  clientOrderId: 'DXQfg4W0LldJlsRI3ueAFt' }
+Done!
+removed canceled order from active orders list:  4481614
+[1m[37m
+    > Tallying active orders... [0m
+    > Total ASK orders: [1m[37m1[0m
+    > Total BID orders: [1m[37m2[0m
+[1m[37m
+    > Re-listing ASK orders... [0m
+firstPositionAskPrice:  0.007687
+order id: 4481624, deltaFromFirstPosition: 0.00006199999999999956
+placing limit order at front:  0.007743
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481654,
+  clientOrderId: 'IDwrIhtEQoIDwtP3WcL0JJ',
+  transactTime: 1517214182603,
+  price: '0.00774300',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+iteration done
+ASK orders relisted
+[1m[37m
+    > Re-listing BID orders... [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+  > Processing order cancellations...[0m
+    > Cancelling [1m[37m1[0m order(s)... cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'quV35gPT7oa1pwSud1CjHe',
+  orderId: 4481624,
+  clientOrderId: 'xD6NjBG9CuOMSdJk2f1jVo' }
+Done!
+removed canceled order from active orders list:  4481624
+[1m[37m
+    > Tallying active orders... [0m
+    > Total ASK orders: [1m[37m1[0m
+    > Total BID orders: [1m[37m2[0m
+[1m[37m
+    > Re-listing ASK orders... [0m
+firstPositionAskPrice:  0.007687
+order id: 4481654, deltaFromFirstPosition: 0.000055999999999999626
+placing limit order at front:  0.007737
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481656,
+  clientOrderId: 'RSyr5vO6gMljrjsi4pl3Ha',
+  transactTime: 1517214186182,
+  price: '0.00773700',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+iteration done
+ASK orders relisted
+[1m[37m
+    > Re-listing BID orders... [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+  > Processing order cancellations...[0m
+    > Cancelling [1m[37m2[0m order(s)... cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'RSyr5vO6gMljrjsi4pl3Ha',
+  orderId: 4481656,
+  clientOrderId: 'ORZvWG7uKuIueP9jWDJrj8' }
+cancelOrder() response:  { code: -2011, msg: 'UNKNOWN_ORDER' }
+Done!
+removed canceled order from active orders list:  4481656
+[1m[37m
+    > Tallying active orders... [0m
+    > Total ASK orders: [1m[37m1[0m
+    > Total BID orders: [1m[37m2[0m
+[1m[37m
+    > Re-listing ASK orders... [0m
+firstPositionAskPrice:  0.007699
+order id: 4481654, deltaFromFirstPosition: 0.00004399999999999977
+placing limit order at end:  0.007749
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481682,
+  clientOrderId: 'HKWM7uyrpWFaoPBNCSuqIU',
+  transactTime: 1517214206059,
+  price: '0.00774900',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+iteration done
+ASK orders relisted
+[1m[37m
+    > Re-listing BID orders... [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+  > Processing order cancellations...[0m
+    > Cancelling [1m[37m1[0m order(s)... cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'HKWM7uyrpWFaoPBNCSuqIU',
+  orderId: 4481682,
+  clientOrderId: 'bAhBkZ0REuvTDuUK0L5CLy' }
+Done!
+removed canceled order from active orders list:  4481682
+[1m[37m
+    > Tallying active orders... [0m
+    > Total ASK orders: [1m[37m1[0m
+    > Total BID orders: [1m[37m2[0m
+[1m[37m
+    > Re-listing ASK orders... [0m
+firstPositionAskPrice:  0.007685
+order id: 4481654, deltaFromFirstPosition: 0.00005799999999999989
+placing limit order at front:  0.007737
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481713,
+  clientOrderId: 'A6bIlcrXlScrOwuyWl9oPz',
+  transactTime: 1517214230088,
+  price: '0.00773700',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+iteration done
+ASK orders relisted
+[1m[37m
+    > Re-listing BID orders... [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+  > Processing order cancellations...[0m
+    > Cancelling [1m[37m3[0m order(s)... cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'lolCqAO0g7uTWVCoBv2wgp',
+  orderId: 4481618,
+  clientOrderId: 'uzavTjKtN8YHTHztElIsQb' }
+cancelOrder() response:  { symbol: 'ICXETH',
+  origClientOrderId: 'IDwrIhtEQoIDwtP3WcL0JJ',
+  orderId: 4481654,
+  clientOrderId: 'FOFAUnokIloqia8jLnHVsl' }
+cancelOrder() response:  { code: -2011, msg: 'UNKNOWN_ORDER' }
+Done!
+removed canceled order from active orders list:  4481654
+removed canceled order from active orders list:  4481618
+[1m[37m
+    > Tallying active orders... [0m
+    > Total ASK orders: [1m[37m1[0m
+    > Total BID orders: [1m[37m1[0m
+[1m[37m
+    > Re-listing ASK orders... [0m
+firstPositionAskPrice:  0.007684
+order id: 4481713, deltaFromFirstPosition: 0.000053000000000000096
+placing limit order at front:  0.007731
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481719,
+  clientOrderId: 'ku67qbSlWWsedO5ZEY3itO',
+  transactTime: 1517214233721,
+  price: '0.00773100',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'SELL' }
+iteration done
+ASK orders relisted
+[1m[37m
+    > Re-listing BID orders... [0m
+firstPositionBidPrice:  0.007680
+order id: 4481625, deltaFromFirstPosition: 0.0000430000000000005
+placing limit order at end:  0.007631
+limit order response:  { symbol: 'ICXETH',
+  orderId: 4481720,
+  clientOrderId: 'RCLoLmClrNpWZ8hFRHPCT5',
+  transactTime: 1517214234610,
+  price: '0.00763100',
+  origQty: '3.00000000',
+  executedQty: '0.00000000',
+  status: 'NEW',
+  timeInForce: 'GTC',
+  type: 'LIMIT',
+  side: 'BUY' }
+iteration done
+BID orders relisted
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m
+[1m[37m
+    > Monitoring active orders   [0m

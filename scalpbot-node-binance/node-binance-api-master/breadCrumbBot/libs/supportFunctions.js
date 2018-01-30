@@ -40,7 +40,7 @@ module.exports = function() {
 		_m: 0,
 		_s: 0,
 		estimatedDailyProfit: 0,
-		processingDelay: 300,
+		processingDelay: 400,
 	}
 
 	var accountBalances = {
@@ -466,7 +466,7 @@ module.exports = function() {
 		if (side == 'SELL') {
 			// get ASK depth within user-defined protection scope
 			for (var x = 0; x <= Object.keys(asks).length; x++) {
-				//console.log(x + ", " + value + ", " + quantity);
+				console.log(x + ", " + value + ", " + quantity);
 
 				var value = Object.keys(asks)[x];
 				var quantity = asks[value];
@@ -483,7 +483,7 @@ module.exports = function() {
 
 			// get BID depth within user-defined protection scope
 			for (var x = 0; x <= Object.keys(bids).length; x++) {
-				//console.log(x + ", " + value + ", " + quantity);
+				console.log(x + ", " + value + ", " + quantity);
 
 				var value = Object.keys(bids)[x];
 				var quantity = bids[value];
@@ -497,7 +497,9 @@ module.exports = function() {
 			}
 		}
 
-		//console.log("total depth quantity for " + side + ": " + totalQuantity)
+		console.log("total depth quantity for " + side + ": " + totalQuantity)
+		if (callback)
+			console.log("cb exists...");
 
 		if (callback) return callback(totalQuantity);
 	}
@@ -700,13 +702,15 @@ module.exports = function() {
 				// [CHECK] to see if lowest delta ASK order is under the minimum threshold
 				if (deltaFromFirstPosition < Number(minDeltaFromFirstPosition).toFixed(config.settings.coinDecimalCount)) {
 					// cancel the lowest delta order so that it can be placed at the end
-					ordering.cancelQueue.push(lowestAskDeltaOrder);
+					if (lowestAskDeltaOrder)
+						ordering.cancelQueue.push(lowestAskDeltaOrder);
 				}
 
 				// [CHECK] to see if lowest delta ASK over the maximum threshold
 				if (deltaFromFirstPosition > Number(maxDeltaFromFirstPosition).toFixed(config.settings.coinDecimalCount)) {
 					// cancel the highest delta order so that it can be placed at the front
-					ordering.cancelQueue.push(highestAskDeltaOrder);
+					if (highestAskDeltaOrder)
+						ordering.cancelQueue.push(highestAskDeltaOrder);
 				}
 			}
 
@@ -766,13 +770,15 @@ module.exports = function() {
 				// [CHECK] to see if lowest delta BID order is under the minimum threshold
 				if (deltaFromFirstPosition < Number(minDeltaFromFirstPosition).toFixed(config.settings.coinDecimalCount)) {
 					// cancel the lowest delta order so that it can be placed at the end
-					ordering.cancelQueue.push(lowestBidDeltaOrder);
+					if (lowestBidDeltaOrder)
+						ordering.cancelQueue.push(lowestBidDeltaOrder);
 				}
 
 				// [CHECK] to see if lowest delta BID over the maximum threshold
 				if (deltaFromFirstPosition > Number(maxDeltaFromFirstPosition).toFixed(config.settings.coinDecimalCount)) {
 					// cancel the highest delta order so that it can be placed at the front
-					ordering.cancelQueue.push(highestBidDeltaOrder);
+					if (highestBidDeltaOrder)
+						ordering.cancelQueue.push(highestBidDeltaOrder);
 				}
 			}
 		},
@@ -800,11 +806,12 @@ module.exports = function() {
 				return false; // no timeout
 		},
 
-		checkMarketDepthQuantity: function checkMarketDepthQuantity(side, range) {
+		checkMarketDepthQuantity: function checkMarketDepthQuantity(side, range, callback) {
 			console.log("side ", side);
 			console.log("range ", range);
 			getMarketDepthQuantity(side, range, function(response) {
-				return response;
+				console.log("cb hit");
+				if (callback) return callback(response);
 			});
 		},
 
