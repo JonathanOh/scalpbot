@@ -65,24 +65,18 @@ const updateHeartbeat = function(callback) {
 
 console.log("\r\nStarting: BreadCrumbBot for Binance... \r\n\n");
 
-/*
-// send an SMS
-smsClient.messages.create({
-  to: '+17725328689',
-  from: '+17725772728',
-  body: 'test from twilio!'
-});
-*/
-
 // define our startup time
 sb.clock.startTime = Date.now();
 
 // initialize session stats
-sb.sessionStats.totalTrades = 0;
+sb.sessionStats.totalTransactions = 0;
 sb.sessionStats.netValue = 0;
 
 // update account accountBalances
 sb.updateAccountBalances(function() {
+  // update account starting value
+  sb.accountStats.startingValue = sb.accountBalances[config.settings.purchasingCurrency];
+
   stateProcessing = false;
 });
 
@@ -144,7 +138,10 @@ sb.updateAccountBalances(function() {
       case states.printSessionStats:
         stateProcessing = true;
 
-        //console.log('\033c'); // clear screen
+        console.log('\033c'); // clear screen
+
+        // update the run time
+				sb.updateRunTime();
 
 				console.log("  -------------------------------------");
 				console.log(color.FgBrightWhite + "    SESSION STATS:" + color.Reset)
@@ -152,19 +149,17 @@ sb.updateAccountBalances(function() {
 				console.log("    > Run time                 : " + color.FgBrightWhite + sb.clock._d + "d " + sb.clock._h + "h " + sb.clock._m + "m " + sb.clock._s + "s" + color.Reset);
         console.log("    > Coin pair                : " + color.FgBrightWhite + config.settings.coinPair + color.Reset);
 				console.log("    > Total quantity filled    : " + color.FgBrightWhite + "n/a" + color.Reset);
-        console.log("    > Account starting balance : " + color.FgBrightWhite + Number(sb.accountStats.startingValue).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency);
-				console.log("    > Account current balance  : " + color.FgBrightWhite + Number(sb.accountBalances[config.settings.purchasingCurrency]).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency);
+        console.log("    > Cycle profit             : " + color.FgBrightWhite + Number(sb.cycleStats.netValue).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency + " ( " + color.FgBrightGreen + Number(sb.sessionStats.netValue * config.settings.approxParentCoinValue).toFixed(2) + color.Reset + " )");
         console.log("   --- ");
 
         if (sb.sessionStats.netValue >= 0) {
-					console.log("    > Total profit             : " + color.FgBrightWhite + Number(sb.sessionStats.netValue).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency + " ( " + color.FgBrightGreen + Number(sb.sessionStats.netValue * config.settings.approxParentCoinValue).toFixed(2) + color.Reset + " )");
-					console.log("    > Estimated profit/day     : " + color.FgBrightWhite + "n/a" + color.Reset);
+					console.log("    > Session profit           : " + color.FgBrightWhite + Number(sb.sessionStats.netValue).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency + " ( " + color.FgBrightGreen + Number(sb.sessionStats.netValue * config.settings.approxParentCoinValue).toFixed(2) + color.Reset + " )");
+					console.log("    > Estimated profit/day     : " + color.FgBrightGreen + Number(sb.clock.estimatedDailyProfit).toFixed(8) + color.Reset + " " + config.settings.purchasingCurrency + " ( " + color.FgBrightGreen + Number(sb.clock.estimatedDailyProfit * config.settings.approxParentCoinValue).toFixed(2) + color.Reset + " )");
 				} else {
 					console.log("    > Total loss               : " + color.FgBrightRed + "n/a" + color.Reset + " " + config.settings.purchasingCurrency);
 				}
 
-				// update the run time
-				sb.updateRunTime();
+        process.stdout.write('\033[s'); // save cursor position
 
         state = states.monitorOrders;
         stateProcessing = false;
@@ -176,7 +171,7 @@ sb.updateAccountBalances(function() {
         if (sb.api.depthUpdated == true) {
           sb.api.depthUpdated = false;
 
-          //process.stdout.write('\033[s'); // save cursor position
+          process.stdout.write('\033[u'); // restore cursor position
 
           console.log(color.FgBrightWhite);
           console.log("    > Monitoring active orders" + heartbeatString + color.Reset);
@@ -192,15 +187,10 @@ sb.updateAccountBalances(function() {
             var filledOrderCount = 0;
 
             // [ANALYZE] active orders to see if any have been FILLED
-            sb.ordering.activeOrders.forEach((order, index) => {
+            sb.ordering.activeOrders.forEach(order => {
               // check to see if the order has been FILLED or PARTIALLY_FILLED
               if (sb.checkIfFilled(order) == true)
                 filledOrderCount += 1;
-
-              // check to see if any of our orders have been manually/abruptly canceled
-              //if (order.status == 'CANCELED') {
-                //sb.ordering.activeOrders.splice(index, 1);
-              //}
             });
 
             // [CHECK] to see if we need to process any filled orders immediately
@@ -223,10 +213,10 @@ sb.updateAccountBalances(function() {
                 }
               });
             }
-
-            //if (state == states.monitorOrders)
-    					//process.stdout.write('\033[u'); // restore cursor position
           });
+
+          //if (state == states.monitorOrders)
+            //process.stdout.write('\033[u'); // restore cursor position
         }
 
         stateProcessing = false;
@@ -261,12 +251,21 @@ sb.updateAccountBalances(function() {
         console.log(color.FgBrightWhite);
         console.log("    > Processing filled orders... " + color.Reset);
 
+        // reset variables
         var fillQuantity = NaN;
-        var depthQuantity = 0;
+        var fillValue = NaN;
+        var averagePrice = NaN;
+        var depthQuantity = NaN;
+        var bestMarketValue = NaN;
+
+        // set flag
+        sb.cycleStats.propcessingFill = true;
 
         // get total executed quantity from all filled orders
         fillQuantity = sb.calculateFilledQuantities(sb.ordering.activeOrders);
+        fillValue = sb.calculateFillValue(sb.ordering.activeOrders);
         console.log("fillQuantity: ", fillQuantity);
+        console.log("fillValue: ", fillValue);
 
         // [CHECK] to see if the minimum required wait time has elapsed following a filled
         if (sb.checkTimeExpired(sb.ordering.fillStartTime, config.settings.minimumResponseDelay) == true) {
@@ -279,21 +278,34 @@ sb.updateAccountBalances(function() {
               // [CHECK] to see if the market depth quantity within our specified range meets the minimum response requirements
               console.log("fillQuantity.bidTotal > 0...");
 
+              /*
               sb.checkMarketDepthQuantity('BUY', config.settings.responseSpreadRequired, function(response) {
-                console.log("response1: ", response);
+                console.log("checkMarketDepthQuantity()1 response: ", response);
                 depthQuantity = response;
               });
+              */
 
-              // if the available depth is equal to or greater than our fill quantity, perform a market order
-              if (depthQuantity >= fillQuantity.bidTotal) {
-                console.log("response > fillQuantity.bidTotal...");
+              sb.checkBestMarketValue('BUY', fillQuantity, function(response) {
+                console.log("checkBestMarketValue()1 response: ", response);
+                bestMarketValue = response;
+              });
+
+              // if the available BID depth is equal to or greater than our fill quantity, and the
+              // average market price is is HIGHER than our original purchase average, perform a market order
+              //if ((depthQuantity >= fillQuantity.bidTotal) && (bestMarketValue > fillValue)) {
+              if (bestMarketValue > fillValue) {
+                //console.log("response > fillQuantity.bidTotal");
+                console.log("fillValue: " + fillValue + ", bestMarketValue: " + bestMarketValue);
+
                 console.log("placing market SELL order for qty: ", fillQuantity.bidTotal);
                 sb.performMarketOrder('SELL', fillQuantity.bidTotal, function(response) {
                   if (response) {
                     console.log(response);
+
                     console.log("market order successful, removing active BUY orders")
+
                     // market order successful, remove all BID orders from our active orders array following a re-sale
-                    sb.removeActiveOrders('BUY', sb.ordering.activeOrders);
+                    sb.ordering.activeOrders = [];
                     console.log("final activeOrders: ", sb.ordering.activeOrders);
 
                     stateProcessing = false;
@@ -303,27 +315,39 @@ sb.updateAccountBalances(function() {
                 stateProcessing = false; // continue
               }
             } else if (fillQuantity.askTotal > 0) {
-              console.log("maximum response time EXPIRED, emergency market ordering...");
+              console.log("placing market BUY order for qty: ", fillQuantity.askTotal);
               // Attempt to perform a market order to re-purchase any previously filled ASK orders
               if (fillQuantity.askTotal > 0) {
                 console.log("fillQuantity.askTotal > 0... : ", fillQuantity.askTotal);
 
+                /*
                 // [CHECK] to see if the market depth quantity within our specified range meets the minimum response requirements
                 sb.checkMarketDepthQuantity('SELL', config.settings.responseSpreadRequired, function(response) {
                   console.log("response2: ", response);
                   depthQuantity = response;
                 });
+                */
+
+                sb.checkBestMarketValue('SELL', fillQuantity, function(response) {
+                  console.log("checkBestMarketValue()2 response: ", response);
+                  bestMarketValue = response;
+                });
 
                 // if the available depth is equal to or greater than our fill quantity, perform a market order
-                if (depthQuantity >= fillQuantity.askTotal) {
-                  console.log("response > fillQuantity.askTotal...");
+              //if ((depthQuantity >= fillQuantity.askTotal) && (bestMarketValue < fillValue)) {
+              if (bestMarketValue > fillValue) {
+                  //console.log("response > fillQuantity.askTotal...");
+                  console.log("fillValue: " + fillValue + ", bestMarketValue: " + bestMarketValue);
+
                   console.log("placing market BUY order for qty: ", fillQuantity.askTotal);
                   sb.performMarketOrder('BUY', fillQuantity.askTotal, function(response) {
                     if (response) {
                       console.log(response);
+
                       console.log("market order successful, removing active SELL orders")
+
                       // market order successful, remove all ASK orders from our active orders array following a re-sale
-                      sb.removeActiveOrders('SELL', sb.ordering.activeOrders);
+                      sb.ordering.activeOrders = [];
                       console.log("final activeOrders: ", sb.ordering.activeOrders);
 
                       stateProcessing = false; // continue
@@ -347,9 +371,11 @@ sb.updateAccountBalances(function() {
               sb.performMarketOrder('SELL', fillQuantity.bidTotal, function(response) {
                 if (response) {
                   console.log(response);
+
                   console.log("market order successful, removing active BUY orders")
+
                   // market order successful, remove all BID orders from our active orders array following a re-sale
-                  sb.removeActiveOrders('BUY', sb.ordering.activeOrders);
+                  sb.ordering.activeOrders = [];
                   console.log("final activeOrders: ", sb.ordering.activeOrders);
 
                   stateProcessing = false; // continue
@@ -362,9 +388,11 @@ sb.updateAccountBalances(function() {
                 sb.performMarketOrder('BUY', fillQuantity.askTotal, function(response) {
                   if (response) {
                     console.log(response);
+
                     console.log("market order successful, removing active SELL orders")
+
                     // market order successful, remove all ASK orders from our active orders array following a re-sale
-                    sb.removeActiveOrders('SELL', sb.ordering.activeOrders);
+                    sb.ordering.activeOrders = [];
                     console.log("final activeOrders: ", sb.ordering.activeOrders);
 
                     stateProcessing = false; // continue
@@ -394,6 +422,21 @@ sb.updateAccountBalances(function() {
         sb.cancelMultipleOrders(sb.ordering.cancelQueue, function() {
           process.stdout.write("Done!\r\n");
 
+          sb.updateOrderStatusMultiple(sb.ordering.activeOrders, function(response) {
+            sb.ordering.activeOrders = response;
+
+            // update active orders, then iterate through and remove canceled orders
+            sb.ordering.activeOrders.forEach((order, index) => {
+              if (order.status == 'CANCELED') {
+                sb.ordering.activeOrders.splice(index, 1);
+
+                console.log("removed canceled order from active orders list: ", order.orderId);
+                console.log("activeOrders: ", sb.ordering.activeOrders);
+              }
+            });
+          });
+
+          /*
           // iterate through active orders and remove canceled orders
           sb.ordering.cancelQueue.forEach(canceledOrder => {
             sb.ordering.activeOrders.forEach((order, index) => {
@@ -405,6 +448,7 @@ sb.updateAccountBalances(function() {
               }
             });
           });
+          */
 
           state = states.tallyOrders;
           stateProcessing = false;
@@ -443,6 +487,26 @@ sb.updateAccountBalances(function() {
         console.log(color.FgBrightWhite);
         console.log("    > Re-listing ASK orders... " + color.Reset);
 
+        if (sb.cycleStats.propcessingFill == true) {
+          sb.cycleStats.propcessingFill = false;
+
+          var prevAccountEndingValue = sb.accountStats.endingValue;
+
+          // get new account stats
+          sb.updateAccountBalances(function() {
+            sb.accountStats.endingValue = sb.accountBalances[config.settings.purchasingCurrency];
+            sb.cycleStats.netValue = sb.accountStats.endingValue - prevAccountEndingValue;
+            sb.sessionStats.netValue = sb.accountStats.endingValue - sb.accountStats.startingValue;
+
+            // send an SMS
+            smsClient.messages.create({
+              to: '+17725328689',
+              from: '+17725772728',
+              body: new Date().toISOString().replace('T', ' ').substr(0, 19) + "\r\n" + "Cycle Profit: " + sb.sessionStats.netValue + " ( " + Number(sb.sessionStats.netValue * config.settings.approxParentCoinValue).toFixed(2) + " )",
+            });
+          });
+        }
+
         // re-list ASK orders
         if (sb.ordering.openAskOrderCount < config.settings.askTierCount) {
           sb.relistAskOrders(function() {
@@ -474,7 +538,7 @@ sb.updateAccountBalances(function() {
           stateProcessing = false;
         }
 
-        state = states.monitorOrders;
+        state = states.printSessionStats;
 
         break;
       case states.criticalError:

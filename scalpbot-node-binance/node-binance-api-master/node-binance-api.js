@@ -8,6 +8,7 @@
 
 module.exports = function() {
 	'use strict';
+	const twilio = require('twilio');
 	const WebSocket = require('ws');
 	const request = require('request');
 	const crypto = require('crypto');
@@ -22,6 +23,8 @@ module.exports = function() {
 	let info = {};
 	let ohlc = {};
 	let options = {recvWindow:60000, reconnect:true};
+
+	var smsClient = new twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 	const publicRequest = function(url, data, callback, method = "GET") {
 		if ( !data ) data = {};
@@ -83,9 +86,12 @@ module.exports = function() {
 
 		request(opt, function(error, response, body) {
 			if ( !response || !body ) {
+				console.log("request error, no response/body, opt: ", opt)
+				if ( callback ) callback(JSON.parse([]));
 				//throw "signedRequest error: "+error;
+			} else {
+				if ( callback ) callback(JSON.parse(body));
 			}
-			if ( callback ) callback(JSON.parse(body));
 		});
 	};
 

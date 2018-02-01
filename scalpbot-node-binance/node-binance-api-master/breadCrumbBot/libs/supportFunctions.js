@@ -51,13 +51,18 @@ module.exports = function() {
 	}
 
 	var sessionStats = {
-		totalTrades: NaN,
+		totalTransactions: NaN,
 		netValue: NaN,
 	}
 
+	var cycleStats = {
+		propcessingFill: false,
+		netValue: 0,
+	}
+
 	var accountStats = {
-		startingValue: NaN,
-		endingValue: NaN,
+		startingValue: 0,
+		endingValue: 0,
 		netValue: 0,
 	}
 
@@ -229,7 +234,7 @@ module.exports = function() {
 		async.forEachOf(orders, function(order, key, iterate) {
 			binance.cancel(config.settings.coinPair, order.orderId, function(response) {
 				if (response) {
-					console.log("cancelOrder() response: ", response);
+					console.log("cancelOrder() response: \r\n", response);
 				} else {
 					console.log("cancelOrder() NO RESPONSE!", order);
 				}
@@ -452,11 +457,62 @@ module.exports = function() {
 		}
 	}
 
+	const getBestMarketValue = function(side, fillQuantity, callback) {
+		var quantityRemaining = fillQuantity;
+		var totalValue = 0;
+
+		if (side == 'SELL') {
+			for (var x = 0; x <= Object.keys(asks).length; x++) {
+				var price = Object.keys(asks)[x];
+				var quantity = asks[value];
+				var value = (price * quantity);
+
+				console.log(x + ", " + price + ", " + quantity + ", value: " + value);
+
+				if (quantity > quantityRemaining) {
+					totalValue += Number(price * quantityRemaining);
+					quantityRemaining = 0;
+				} else {
+					totalValue += Number(value);
+					quantityRemaining -= quantity;
+				}
+
+				// finished getting best market value
+				if (quantityRemaining <= 0)
+					break;
+			}
+		} else { // BUY
+			for (var x = 0; x <= Object.keys(bids).length; x++) {
+				var price = Object.keys(bids)[x];
+				var quantity = bids[value];
+				var value = (price * quantity);
+
+				console.log(x + ", " + price + ", " + quantity + ", value: " + value);
+
+				if (quantity > quantityRemaining) {
+					totalValue += Number(price * quantityRemaining);
+					quantityRemaining = 0;
+				} else {
+					totalValue += Number(value);
+					quantityRemaining -= quantity;
+				}
+
+				// finished getting best market value
+				if (quantityRemaining <= 0)
+					break;
+			}
+		}
+
+		console.log("Current market value for " + side + " qty of " + fillQuantity + ": " + totalValue);
+
+		if (callback) return callback(totalValue);
+	}
+
 	const getMarketDepthQuantity = function(side, range, callback) {
 		var totalQuantity = 0;
 		var thresholdValue = 0;
 
-		// calculate the range threshold value
+		// calculate the range threshold price
 		if (side == 'SELL') {
 			thresholdValue = Number(Object.keys(asks)[0]) + Number(config.settings.responseSpreadRequired / config.satoshiMultiplier);
 		} else { // BID
@@ -466,12 +522,12 @@ module.exports = function() {
 		if (side == 'SELL') {
 			// get ASK depth within user-defined protection scope
 			for (var x = 0; x <= Object.keys(asks).length; x++) {
-				console.log(x + ", " + value + ", " + quantity);
+				var price = Object.keys(asks)[x];
+				var quantity = asks[price];
 
-				var value = Object.keys(asks)[x];
-				var quantity = asks[value];
+				console.log(x + ", " + price + ", " + quantity);
 
-				if(value <= thresholdValue) {
+				if(price <= thresholdValue) {
 					totalQuantity += Number(quantity);
 				} else {
 					// outside of our threshold scope, stop iterating
@@ -483,12 +539,12 @@ module.exports = function() {
 
 			// get BID depth within user-defined protection scope
 			for (var x = 0; x <= Object.keys(bids).length; x++) {
-				console.log(x + ", " + value + ", " + quantity);
+				var price = Object.keys(bids)[x];
+				var quantity = bids[price];
 
-				var value = Object.keys(bids)[x];
-				var quantity = bids[value];
+				console.log(x + ", " + price + ", " + quantity);
 
-				if(value >= thresholdValue) {
+				if(price >= thresholdValue) {
 					totalQuantity += Number(quantity);
 				} else {
 					// outside of our threshold scope, stop iterating
@@ -498,8 +554,6 @@ module.exports = function() {
 		}
 
 		console.log("total depth quantity for " + side + ": " + totalQuantity)
-		if (callback)
-			console.log("cb exists...");
 
 		if (callback) return callback(totalQuantity);
 	}
@@ -855,6 +909,15 @@ module.exports = function() {
 			});
 		},
 
+		checkBestMarketValue: function checkBestMarketValue(side, fillQuantity, callback) {
+			console.log("side ", side);
+			console.log("range ", fillQuantity);
+			getBestMarketValue(side, fillQuantity, function(response) {
+				console.log("cb hit");
+				if (callback) return callback(response);
+			});
+		},
+
 		calculateFilledQuantities: function calculateFilledQuantities(orders) {
 			var response = {
 				bidTotal: 0,
@@ -874,15 +937,26 @@ module.exports = function() {
 			return response;
 		},
 
-		removeActiveOrders: function remoteActiveOrders(side) {
-			ordering.activeOrders.forEach(function(order, index) {
-				if (order.side == side) {
-					console.log("splicing order: ", order);
-					// remove matching order type from the array
-					ordering.activeOrders.splice(index, 1);
-					console.log("after: ", ordering.activeOrders);
+		calculateFillValue: function calculateFillValue(orders) {
+			var totalBidFills;
+			var totalAskFills;
+
+			var response = {
+				totalBidValue: 0,
+				totalAskValue: 0,
+			}
+
+			orders.forEach(order => {
+				if (order.side == 'BUY' && order.executedQty > 0) {
+					response.totalBidValue += Number(order.executedQty * order.price);
+				}
+
+				if (order.side == 'SELL' && order.executedQty > 0) {
+					response.totalAskValue += Number(order.executedQty * order.price);
 				}
 			});
+
+			return response;
 		},
 
 		relistAskOrders: function relistAskOrders(callback) {
@@ -930,6 +1004,8 @@ module.exports = function() {
 		asks: asks,
 		ordering: ordering,
 		depth: depth,
+		sessionStats: sessionStats,
+		cycleStats: cycleStats,
 		clock: clock,
 		api: api,
 		accountBalances: accountBalances,

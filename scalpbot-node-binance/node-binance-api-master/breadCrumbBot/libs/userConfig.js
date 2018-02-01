@@ -24,19 +24,19 @@ module.exports = function() {
 			purchasingCurrency: 'ETH',					// define the starting currency; valid values:
 																					// 'ETH', 'BTC'
 
-			approxParentCoinValue: 1050,				// approximate value of the coin being traded against (i.e. ETH or BTC)
+			approxParentCoinValue: 1150,				// approximate value of the coin being traded against (i.e. ETH or BTC)
 
-			minimumDistance: 40,								// starting distance (in satoshi) from first BID/ASK position to begin orders
-			tierDistance: 8,										// distance per tier (in satoshi) of orders
+			minimumDistance: 50,								// starting distance (in satoshi) from first BID/ASK position to begin orders
+			tierDistance: 10,										// distance per tier (in satoshi) of orders
 			safetyMargin: 5,										// additiona 'padding' required to re-list an order in front (to prevent jittering)
 
-			askTierCount: 4,										// total number of orders/tiers to maintain on the ASK side of the order book in which to create orders
-			bidTierCount: 4,										// total number of orders/tiers to maintain on the BID side of the order book in which to create orders
+			askTierCount: 2,										// total number of orders/tiers to maintain on the ASK side of the order book in which to create orders
+			bidTierCount: 0,										// total number of orders/tiers to maintain on the BID side of the order book in which to create orders
 
-			coinsPerTierAsk: 30,								// number of coins to list per ASK tier
-			coinsPerTierBid: 10,								// number of coins to list per BID tier
+			coinsPerTierAsk: 3,									// number of coins to list per ASK tier
+			coinsPerTierBid: 13,								// number of coins to list per BID tier
 
-			minimumResponseDelay: 5,						// minimum time (in seconds) to wait before re-purchsaing or re-selling coins after a buyout
+			minimumResponseDelay: 2,						// minimum time (in seconds) to wait before re-purchsaing or re-selling coins after a buyout
 			maximumResponseDelay: 8,						// maximum time (in seconds) to wait before performing a market order for loss-cutting
 			responseSpreadRequired: 30,					// the minimum market spread required to perform a re-purchase or re-sale after a buyout
 		},
